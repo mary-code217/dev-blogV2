@@ -1,0 +1,177 @@
+---
+// Pagefind 검색 컴포넌트
+---
+
+<div class="search-wrap" id="search-wrap">
+	<input
+		type="search"
+		id="search-input"
+		class="search-input"
+		placeholder="글 검색..."
+		aria-label="글 검색"
+	/>
+	<div class="search-results" id="search-results" hidden></div>
+</div>
+
+<style>
+	.search-wrap {
+		position: relative;
+		margin-bottom: var(--space-lg);
+	}
+
+	.search-input {
+		width: 100%;
+		padding: 10px 16px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background-color: var(--bg);
+		color: var(--text);
+		font-size: 0.9rem;
+		font-family: inherit;
+		outline: none;
+		transition: border-color 0.2s ease;
+	}
+
+	.search-input::placeholder {
+		color: var(--faint);
+	}
+
+	.search-input:focus {
+		border-color: var(--accent);
+	}
+
+	.search-results {
+		margin-top: var(--space-md);
+		display: flex;
+		flex-direction: column;
+	}
+
+	.search-results[hidden] {
+		display: none;
+	}
+
+	:global(.search-result-item) {
+		display: block;
+		padding: var(--card-pad);
+		border-bottom: 1px solid var(--border);
+		text-decoration: none;
+		color: var(--text);
+		transition: background-color 0.2s ease;
+	}
+
+	:global(.search-result-item:hover) {
+		background-color: var(--panel);
+	}
+
+	:global(.search-result-title) {
+		font-size: 1rem;
+		font-weight: 600;
+		margin: 0 0 var(--space-xs) 0;
+	}
+
+	:global(.search-result-excerpt) {
+		font-size: 0.85rem;
+		color: var(--muted);
+		line-height: 1.5;
+		margin: 0;
+	}
+
+	:global(.search-result-excerpt mark) {
+		background-color: transparent;
+		color: var(--accent);
+		font-weight: 600;
+	}
+
+	:global(.search-no-results) {
+		padding: var(--space-lg) 0;
+		text-align: center;
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+</style>
+
+<script>
+	function initSearch() {
+		const input = document.getElementById('search-input') as HTMLInputElement | null;
+		const resultsEl = document.getElementById('search-results');
+		const postList = document.getElementById('post-list');
+		const filterGroups = document.querySelectorAll('.filter-group');
+		const loadMoreWrap = document.getElementById('load-more-wrap');
+		const emptyState = document.getElementById('empty-state');
+
+		if (!input || !resultsEl) return;
+
+		let pagefind: any = null;
+		let debounceTimer: ReturnType<typeof setTimeout>;
+
+		async function loadPagefind() {
+			if (pagefind) return pagefind;
+			try {
+				pagefind = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
+				await pagefind.init();
+			} catch {
+				// Pagefind 인덱스가 없을 수 있음 (dev 모드)
+				pagefind = null;
+			}
+			return pagefind;
+		}
+
+		function showPostList(show: boolean) {
+			if (postList) postList.hidden = !show;
+			filterGroups.forEach((el) => (el as HTMLElement).hidden = !show);
+			if (loadMoreWrap) loadMoreWrap.hidden = !show;
+			if (emptyState) emptyState.hidden = true;
+		}
+
+		async function search(query: string) {
+			if (!query.trim()) {
+				resultsEl.hidden = true;
+				resultsEl.innerHTML = '';
+				showPostList(true);
+				// re-trigger filter render
+				document.querySelector<HTMLButtonElement>('#category-filter .filter-btn.active')?.click();
+				return;
+			}
+
+			const pf = await loadPagefind();
+			if (!pf) {
+				resultsEl.innerHTML = '<p class="search-no-results">검색 기능은 빌드 후 사용할 수 있습니다.</p>';
+				resultsEl.hidden = false;
+				showPostList(false);
+				return;
+			}
+
+			const searchResult = await pf.search(query);
+			showPostList(false);
+
+			if (searchResult.results.length === 0) {
+				resultsEl.innerHTML = '<p class="search-no-results">검색 결과가 없습니다.</p>';
+				resultsEl.hidden = false;
+				return;
+			}
+
+			const results = await Promise.all(
+				searchResult.results.slice(0, 20).map((r: any) => r.data())
+			);
+
+			resultsEl.innerHTML = results.map((r: any) => `
+				<a href="${r.url}" class="search-result-item">
+					<p class="search-result-title">${r.meta?.title || '제목 없음'}</p>
+					<p class="search-result-excerpt">${r.excerpt || ''}</p>
+				</a>
+			`).join('');
+
+			resultsEl.hidden = false;
+		}
+
+		input.addEventListener('input', () => {
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => {
+				search(input.value);
+			}, 300);
+		});
+	}
+
+	initSearch();
+	document.addEventListener('astro:after-swap', initSearch);
+</script>
