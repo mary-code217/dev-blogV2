@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import ThemeScript from './ThemeScript.astro';
 import { SITE_TITLE } from '../consts';
 
 interface Props {
@@ -24,6 +25,9 @@ const { title, description } = Astro.props;
 	href={new URL('rss.xml', Astro.site)}
 />
 <meta name="generator" content={Astro.generator} />
+
+<!-- Theme -->
+<ThemeScript />
 
 <!-- Fonts -->
 <link
