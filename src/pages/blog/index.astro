@@ -1,8 +1,244 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../../consts';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+	.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const categories = [...new Set(posts.map((p) => p.data.category))].sort();
+const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 ---
 
 <BaseLayout title={`글 목록 - ${SITE_TITLE}`} description={SITE_DESCRIPTION} activeNav="blog">
-	<h1>글 목록</h1>
+	<section class="blog-list">
+		<h1 class="page-title">Blog</h1>
+
+		<!-- 카테고리 필터 -->
+		<div class="filter-group" id="category-filter">
+			<button class="filter-btn active" data-category="all">전체</button>
+			{categories.map((cat) => (
+				<button class="filter-btn" data-category={cat}>{cat}</button>
+			))}
+		</div>
+
+		<!-- 태그 필터 -->
+		{tags.length > 0 && (
+			<div class="filter-group filter-group--tags" id="tag-filter">
+				{tags.map((tag) => (
+					<button class="tag-btn" data-tag={tag}>{tag}</button>
+				))}
+			</div>
+		)}
+
+		<!-- 글 목록 -->
+		<div class="post-list" id="post-list">
+			{posts.map((post) => (
+				<div
+					class="post-item"
+					data-category={post.data.category}
+					data-tags={post.data.tags.join(',')}
+				>
+					<PostCard
+						title={post.data.title}
+						description={post.data.description}
+						date={post.data.date}
+						category={post.data.category}
+						slug={post.id}
+					/>
+				</div>
+			))}
+		</div>
+
+		<!-- 빈 상태 -->
+		<p class="empty-state" id="empty-state" hidden>
+			조건에 맞는 글이 없습니다.
+		</p>
+
+		<!-- 더보기 버튼 -->
+		<div class="load-more-wrap" id="load-more-wrap">
+			<button class="load-more-btn" id="load-more-btn" type="button">더보기</button>
+		</div>
+	</section>
 </BaseLayout>
+
+<style>
+	.page-title {
+		font-size: 2rem;
+		font-weight: 700;
+		margin: 0 0 var(--space-lg) 0;
+	}
+
+	.filter-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-sm);
+		margin-bottom: var(--space-md);
+	}
+
+	.filter-group--tags {
+		margin-bottom: var(--space-lg);
+	}
+
+	.filter-btn {
+		padding: 6px 16px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text);
+		font-size: 0.875rem;
+		cursor: pointer;
+		min-height: var(--tap-min-h);
+		font-family: inherit;
+		transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+	}
+
+	.filter-btn:hover {
+		background-color: var(--panel);
+	}
+
+	.filter-btn.active {
+		background-color: var(--accent);
+		color: #fff;
+		border-color: var(--accent);
+	}
+
+	.tag-btn {
+		padding: 2px 8px;
+		border: none;
+		border-radius: 4px;
+		background-color: var(--panel);
+		color: var(--muted);
+		font-size: 0.8rem;
+		cursor: pointer;
+		font-family: inherit;
+		transition: color 0.2s ease, background-color 0.2s ease;
+	}
+
+	.tag-btn:hover {
+		color: var(--accent);
+	}
+
+	.tag-btn.active {
+		background-color: var(--accent);
+		color: #fff;
+	}
+
+	.post-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.post-item[hidden] {
+		display: none;
+	}
+
+	.empty-state {
+		color: var(--muted);
+		padding: var(--space-xl) 0;
+		text-align: center;
+	}
+
+	.load-more-wrap {
+		margin-top: var(--space-lg);
+		text-align: center;
+	}
+
+	.load-more-wrap[hidden] {
+		display: none;
+	}
+
+	.load-more-btn {
+		display: inline-flex;
+		align-items: center;
+		padding: 10px 24px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text);
+		font-size: 0.875rem;
+		font-family: inherit;
+		cursor: pointer;
+		min-height: var(--tap-min-h);
+		transition: background-color 0.2s ease;
+	}
+
+	.load-more-btn:hover {
+		background-color: var(--panel);
+	}
+</style>
+
+<script>
+	function initBlogList() {
+		const PAGE_SIZE = 10;
+		let visibleCount = PAGE_SIZE;
+		let activeCategory = 'all';
+		let activeTag: string | null = null;
+
+		const items = Array.from(document.querySelectorAll<HTMLElement>('.post-item'));
+		const categoryBtns = document.querySelectorAll<HTMLButtonElement>('#category-filter .filter-btn');
+		const tagBtns = document.querySelectorAll<HTMLButtonElement>('#tag-filter .tag-btn');
+		const emptyState = document.getElementById('empty-state');
+		const loadMoreWrap = document.getElementById('load-more-wrap');
+		const loadMoreBtn = document.getElementById('load-more-btn');
+
+		function getFiltered() {
+			return items.filter((item) => {
+				const cat = item.dataset.category || '';
+				const tags = (item.dataset.tags || '').split(',').filter(Boolean);
+				const catMatch = activeCategory === 'all' || cat === activeCategory;
+				const tagMatch = !activeTag || tags.includes(activeTag);
+				return catMatch && tagMatch;
+			});
+		}
+
+		function render() {
+			const filtered = getFiltered();
+
+			items.forEach((item) => item.hidden = true);
+			filtered.forEach((item, i) => {
+				item.hidden = i >= visibleCount;
+			});
+
+			if (emptyState) emptyState.hidden = filtered.length > 0;
+			if (loadMoreWrap) loadMoreWrap.hidden = filtered.length <= visibleCount;
+		}
+
+		categoryBtns.forEach((btn) => {
+			btn.addEventListener('click', () => {
+				activeCategory = btn.dataset.category || 'all';
+				visibleCount = PAGE_SIZE;
+				categoryBtns.forEach((b) => b.classList.remove('active'));
+				btn.classList.add('active');
+				render();
+			});
+		});
+
+		tagBtns.forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const tag = btn.dataset.tag || '';
+				if (activeTag === tag) {
+					activeTag = null;
+					btn.classList.remove('active');
+				} else {
+					activeTag = tag;
+					tagBtns.forEach((b) => b.classList.remove('active'));
+					btn.classList.add('active');
+				}
+				visibleCount = PAGE_SIZE;
+				render();
+			});
+		});
+
+		loadMoreBtn?.addEventListener('click', () => {
+			visibleCount += PAGE_SIZE;
+			render();
+		});
+
+		render();
+	}
+
+	initBlogList();
+	document.addEventListener('astro:after-swap', initBlogList);
+</script>
