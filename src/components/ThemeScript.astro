@@ -1,0 +1,13 @@
+---
+// 다크/라이트 모드 초기화 스크립트
+// FOUC 방지를 위해 <head>에서 동기 실행
+---
+
+<script is:inline>
+(function () {
+	const stored = localStorage.getItem('theme');
+	const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+	const theme = stored || (prefersDark ? 'dark' : 'light');
+	document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
