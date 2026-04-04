@@ -1,16 +1,8 @@
 ---
-import BaseHead from '../../components/BaseHead.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../../consts';
 ---
 
-<!doctype html>
-<html lang="ko">
-	<head>
-		<BaseHead title={`글 목록 - ${SITE_TITLE}`} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<main>
-			<h1>글 목록</h1>
-		</main>
-	</body>
-</html>
+<BaseLayout title={`글 목록 - ${SITE_TITLE}`} description={SITE_DESCRIPTION} activeNav="blog">
+	<h1>글 목록</h1>
+</BaseLayout>

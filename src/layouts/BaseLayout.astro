@@ -1,0 +1,76 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Sidebar from '../components/Sidebar.astro';
+import { SITE_TITLE } from '../consts';
+
+interface Props {
+	title: string;
+	description: string;
+	activeNav?: string;
+}
+
+const { title, description, activeNav } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+	<head>
+		<BaseHead title={title} description={description} />
+	</head>
+	<body>
+		<div class="shell">
+			<Sidebar activeNav={activeNav} />
+			<div class="divider"></div>
+			<main id="content" class="content">
+				<div class="content__inner">
+					<slot />
+				</div>
+			</main>
+		</div>
+
+		<style>
+			.shell {
+				display: grid;
+				grid-template-columns: var(--sidebar) 1px 1fr;
+				max-width: 1100px;
+				margin: 0 auto;
+				min-height: 100vh;
+			}
+
+			.divider {
+				background-color: var(--border);
+			}
+
+			.content {
+				padding: 56px var(--pad-x);
+				min-height: 100vh;
+				display: flex;
+				width: 100%;
+			}
+
+			.content__inner {
+				max-width: var(--max);
+				display: flex;
+				flex-direction: column;
+				flex: 1;
+				width: 100%;
+			}
+
+			@media (max-width: 899px) {
+				.shell {
+					grid-template-columns: 1fr;
+					grid-template-rows: auto 1fr;
+				}
+
+				.divider {
+					display: none;
+				}
+
+				.content {
+					padding: 32px var(--pad-x);
+					min-height: auto;
+				}
+			}
+		</style>
+	</body>
+</html>

@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
-import BaseHead from '../components/BaseHead.astro';
+import BaseLayout from './BaseLayout.astro';
 import { SITE_TITLE } from '../consts';
 
 type Props = CollectionEntry<'blog'>['data'];
@@ -8,17 +8,9 @@ type Props = CollectionEntry<'blog'>['data'];
 const { title, description } = Astro.props;
 ---
 
-<!doctype html>
-<html lang="ko">
-	<head>
-		<BaseHead title={`${title} - ${SITE_TITLE}`} description={description} />
-	</head>
-	<body>
-		<main>
-			<article>
-				<h1>{title}</h1>
-				<slot />
-			</article>
-		</main>
-	</body>
-</html>
+<BaseLayout title={`${title} - ${SITE_TITLE}`} description={description} activeNav="blog">
+	<article>
+		<h1>{title}</h1>
+		<slot />
+	</article>
+</BaseLayout>
