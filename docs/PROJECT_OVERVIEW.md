@@ -21,6 +21,19 @@
 | CI/CD | GitHub Actions | push → 빌드 → 배포 자동화 |
 | 버전 관리 | Git + GitHub | 콘텐츠도 Git으로 관리 |
 
+### 의존성
+
+| 패키지 | 버전 | 용도 |
+|---|---|---|
+| `astro` | ^6.1.3 | 프레임워크 |
+| `@astrojs/mdx` | ^5.0.3 | MDX 지원 |
+| `@astrojs/rss` | ^4.0.18 | RSS 피드 생성 |
+| `@astrojs/sitemap` | ^3.7.2 | 사이트맵 생성 |
+| `pagefind` | ^1.4.0 | 검색 인덱싱 |
+| `sharp` | ^0.34.3 | 이미지 최적화 |
+
+- Node.js >= 22.12.0
+
 ## 3. 주요 기능
 
 ### 콘텐츠
