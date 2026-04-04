@@ -90,50 +90,49 @@
 	}
 </style>
 
-<script>
-	function initSearch() {
-		const input = document.getElementById('search-input') as HTMLInputElement | null;
-		const resultsEl = document.getElementById('search-results');
-		const postList = document.getElementById('post-list');
-		const filterGroups = document.querySelectorAll('.filter-group');
-		const loadMoreWrap = document.getElementById('load-more-wrap');
-		const emptyState = document.getElementById('empty-state');
+<script is:inline>
+	(function initSearch() {
+		var input = document.getElementById('search-input');
+		var resultsEl = document.getElementById('search-results');
+		var postList = document.getElementById('post-list');
+		var filterGroups = document.querySelectorAll('.filter-group');
+		var loadMoreWrap = document.getElementById('load-more-wrap');
+		var emptyState = document.getElementById('empty-state');
 
 		if (!input || !resultsEl) return;
 
-		let pagefind: any = null;
-		let debounceTimer: ReturnType<typeof setTimeout>;
+		var pagefind = null;
+		var debounceTimer;
 
 		async function loadPagefind() {
 			if (pagefind) return pagefind;
 			try {
-				pagefind = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
+				pagefind = await import('/pagefind/pagefind.js');
 				await pagefind.init();
-			} catch {
-				// Pagefind 인덱스가 없을 수 있음 (dev 모드)
+			} catch (e) {
 				pagefind = null;
 			}
 			return pagefind;
 		}
 
-		function showPostList(show: boolean) {
+		function showPostList(show) {
 			if (postList) postList.hidden = !show;
-			filterGroups.forEach((el) => (el as HTMLElement).hidden = !show);
+			filterGroups.forEach(function (el) { el.hidden = !show; });
 			if (loadMoreWrap) loadMoreWrap.hidden = !show;
 			if (emptyState) emptyState.hidden = true;
 		}
 
-		async function search(query: string) {
+		async function search(query) {
 			if (!query.trim()) {
 				resultsEl.hidden = true;
 				resultsEl.innerHTML = '';
 				showPostList(true);
-				// re-trigger filter render
-				document.querySelector<HTMLButtonElement>('#category-filter .filter-btn.active')?.click();
+				var activeBtn = document.querySelector('#category-filter .filter-btn.active');
+				if (activeBtn) activeBtn.click();
 				return;
 			}
 
-			const pf = await loadPagefind();
+			var pf = await loadPagefind();
 			if (!pf) {
 				resultsEl.innerHTML = '<p class="search-no-results">검색 기능은 빌드 후 사용할 수 있습니다.</p>';
 				resultsEl.hidden = false;
@@ -141,7 +140,7 @@
 				return;
 			}
 
-			const searchResult = await pf.search(query);
+			var searchResult = await pf.search(query);
 			showPostList(false);
 
 			if (searchResult.results.length === 0) {
@@ -150,28 +149,25 @@
 				return;
 			}
 
-			const results = await Promise.all(
-				searchResult.results.slice(0, 20).map((r: any) => r.data())
+			var results = await Promise.all(
+				searchResult.results.slice(0, 20).map(function (r) { return r.data(); })
 			);
 
-			resultsEl.innerHTML = results.map((r: any) => `
-				<a href="${r.url}" class="search-result-item">
-					<p class="search-result-title">${r.meta?.title || '제목 없음'}</p>
-					<p class="search-result-excerpt">${r.excerpt || ''}</p>
-				</a>
-			`).join('');
+			resultsEl.innerHTML = results.map(function (r) {
+				return '<a href="' + r.url + '" class="search-result-item">' +
+					'<p class="search-result-title">' + (r.meta && r.meta.title || '제목 없음') + '</p>' +
+					'<p class="search-result-excerpt">' + (r.excerpt || '') + '</p>' +
+					'</a>';
+			}).join('');
 
 			resultsEl.hidden = false;
 		}
 
-		input.addEventListener('input', () => {
+		input.addEventListener('input', function () {
 			clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(() => {
+			debounceTimer = setTimeout(function () {
 				search(input.value);
 			}, 300);
 		});
-	}
-
-	initSearch();
-	document.addEventListener('astro:after-swap', initSearch);
+	})();
 </script>
