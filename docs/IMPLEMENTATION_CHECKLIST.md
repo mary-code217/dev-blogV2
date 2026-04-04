@@ -64,9 +64,9 @@
 
 ## Phase 8: 배포
 
-- [ ] GitHub 저장소 생성
-- [ ] GitHub Actions 워크플로우 작성 (빌드 → GitHub Pages 배포)
-- [ ] `astro.config.mjs` 사이트 URL 설정
+- [x] GitHub 저장소 생성
+- [x] GitHub Actions 워크플로우 작성 (빌드 → GitHub Pages 배포)
+- [ ] `astro.config.mjs` 사이트 URL 설정 (배포 후 실제 URL로 변경)
 - [ ] 배포 테스트
 - [ ] 커스텀 도메인 설정 (선택)
 
