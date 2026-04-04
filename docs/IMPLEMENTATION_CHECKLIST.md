@@ -56,11 +56,11 @@
 
 ## Phase 7: SEO & 피드
 
-- [ ] BaseHead 컴포넌트 (메타 태그, OG 태그)
-- [ ] 사이트맵 설정 (`@astrojs/sitemap`)
-- [ ] RSS 피드 (`/rss.xml`)
-- [ ] canonical URL 설정
-- [ ] HTML lang="ko" 설정
+- [x] BaseHead 컴포넌트 (메타 태그, OG 태그)
+- [x] 사이트맵 설정 (`@astrojs/sitemap`)
+- [x] RSS 피드 (`/rss.xml`)
+- [x] canonical URL 설정
+- [x] HTML lang="ko" 설정
 
 ## Phase 8: 배포
 
