@@ -37,14 +37,14 @@
 
 ## Phase 5: 글 상세 페이지
 
-- [ ] 글 상세 페이지 (`/blog/{slug}/`) 구현
-- [ ] 글 헤더 (제목, 날짜, 카테고리, 태그)
-- [ ] Markdown → HTML 렌더링
-- [ ] 코드 블록 Syntax Highlighting (Shiki: github-light / github-dark)
-- [ ] 코드 블록 복사 버튼 + 언어 표시
-- [ ] 목차 (TOC) — 데스크톱: 우측 플로팅, 모바일: 상단 접이식
-- [ ] 스크롤 스파이 (현재 섹션 하이라이팅)
-- [ ] 이전 글 / 다음 글 네비게이션
+- [x] 글 상세 페이지 (`/blog/{slug}/`) 구현
+- [x] 글 헤더 (제목, 날짜, 카테고리, 태그)
+- [x] Markdown → HTML 렌더링
+- [x] 코드 블록 Syntax Highlighting (Shiki: github-light / github-dark)
+- [x] 코드 블록 복사 버튼 + 언어 표시
+- [x] 목차 (TOC) — 데스크톱: 우측 플로팅, 모바일: 상단 접이식
+- [x] 스크롤 스파이 (현재 섹션 하이라이팅)
+- [x] 이전 글 / 다음 글 네비게이션
 
 ## Phase 6: 검색
 
