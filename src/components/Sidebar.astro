@@ -1,0 +1,137 @@
+---
+import ThemeToggle from './ThemeToggle.astro';
+import { SITE_TITLE } from '../consts';
+
+interface Props {
+	activeNav?: string;
+}
+
+const { activeNav } = Astro.props;
+
+const nav = [
+	{ id: 'home', label: 'Home', href: '/' },
+	{ id: 'blog', label: 'Blog', href: '/blog/' },
+];
+---
+
+<aside class="sidebar">
+	<a class="sidebar__title" href="/">{SITE_TITLE}</a>
+
+	<nav>
+		<ul class="nav">
+			{nav.map((item) => {
+				const isActive = activeNav === item.id;
+				return (
+					<li>
+						<a href={item.href} aria-current={isActive ? 'page' : undefined}>
+							{item.label}
+						</a>
+					</li>
+				);
+			})}
+		</ul>
+	</nav>
+
+	<div class="sidebar-actions">
+		<ThemeToggle />
+	</div>
+</aside>
+
+<style>
+	.sidebar {
+		padding: 55px 24px;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 24px;
+		position: sticky;
+		top: 0;
+		height: 100vh;
+	}
+
+	.sidebar__title {
+		font-size: 28px;
+		font-weight: 700;
+		color: var(--text);
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+
+	.sidebar__title:hover {
+		color: var(--accent);
+		text-decoration: none;
+	}
+
+	.nav {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 8px;
+	}
+
+	.nav a {
+		color: var(--muted);
+		text-decoration: none;
+		font-size: 0.95rem;
+		padding: 4px 0;
+		transition: color 0.2s ease;
+	}
+
+	.nav a:hover {
+		color: var(--accent);
+	}
+
+	.nav a[aria-current='page'] {
+		color: var(--accent);
+		font-weight: 700;
+	}
+
+	.sidebar-actions {
+		margin-top: auto;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	/* Mobile: sidebar -> horizontal header */
+	@media (max-width: 899px) {
+		.sidebar {
+			position: static;
+			height: auto;
+			padding: 16px var(--pad-x);
+			flex-direction: row;
+			flex-wrap: wrap;
+			align-items: center;
+			align-content: flex-start;
+			gap: 12px;
+			border-bottom: 1px solid var(--border);
+		}
+
+		.sidebar__title {
+			order: 1;
+			flex: 1 1 auto;
+			font-size: 24px;
+		}
+
+		nav {
+			order: 4;
+			width: 100%;
+		}
+
+		.nav {
+			flex-direction: row;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 8px 12px;
+		}
+
+		.sidebar-actions {
+			order: 2;
+			margin-top: 0;
+			margin-left: auto;
+		}
+	}
+</style>
