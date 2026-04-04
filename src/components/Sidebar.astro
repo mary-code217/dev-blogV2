@@ -24,7 +24,8 @@ const nav = [
 				return (
 					<li>
 						<a href={item.href} aria-current={isActive ? 'page' : undefined}>
-							{item.label}
+							<span>{item.label}</span>
+							<span class="dot" aria-hidden="true"></span>
 						</a>
 					</li>
 				);
@@ -54,39 +55,57 @@ const nav = [
 		font-weight: 700;
 		color: var(--text);
 		text-decoration: none;
-		transition: color 0.2s ease;
+		letter-spacing: 0.5px;
+		transition: transform 0.2s ease;
+		transform-origin: right center;
 	}
 
 	.sidebar__title:hover {
-		color: var(--accent);
+		transform: scale(1.05);
 		text-decoration: none;
 	}
 
 	.nav {
 		list-style: none;
-		margin: 0;
+		margin: 12px 0 0 0;
 		padding: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: flex-end;
-		gap: 8px;
+		gap: 6px;
 	}
 
 	.nav a {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 10px;
 		color: var(--muted);
 		text-decoration: none;
-		font-size: 0.95rem;
-		padding: 4px 0;
-		transition: color 0.2s ease;
+		font-size: 16px;
+		padding: 2px 0;
+		transition: transform 0.2s ease;
+		transform-origin: right center;
 	}
 
 	.nav a:hover {
-		color: var(--accent);
+		transform: scale(1.05);
 	}
 
 	.nav a[aria-current='page'] {
-		color: var(--accent);
-		font-weight: 700;
+		color: var(--text);
+		text-decoration: underline;
+		text-decoration-thickness: 1.5px;
+		text-underline-offset: 5px;
+	}
+
+	.dot {
+		width: 4px;
+		height: 4px;
+		border-radius: 50%;
+		background-color: var(--muted);
+		opacity: 0.55;
+		flex-shrink: 0;
 	}
 
 	.sidebar-actions {
@@ -107,7 +126,6 @@ const nav = [
 			align-items: center;
 			align-content: flex-start;
 			gap: 12px;
-			border-bottom: 1px solid var(--border);
 		}
 
 		.sidebar__title {
@@ -126,6 +144,11 @@ const nav = [
 			flex-wrap: wrap;
 			justify-content: center;
 			gap: 8px 12px;
+			margin: 0;
+		}
+
+		.dot {
+			display: none;
 		}
 
 		.sidebar-actions {
