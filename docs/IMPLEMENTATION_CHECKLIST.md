@@ -2,13 +2,13 @@
 
 ## Phase 1: 프로젝트 초기 설정
 
-- [ ] Astro 프로젝트 정리 (기본 템플릿 예시 파일 제거)
-- [ ] CLAUDE.md 프로젝트에 반영 확인
-- [ ] TypeScript 설정 확인
-- [ ] 폰트 설정 (Pretendard CDN, JetBrains Mono)
-- [ ] CSS 변수 / 디자인 토큰 정의 (`global.css`)
-- [ ] 다크/라이트 모드 기본 구조 (`data-theme` 속성, localStorage)
-- [ ] 콘텐츠 컬렉션 스키마 정의 (`content.config.ts` — title, description, date, category, tags, draft)
+- [x] Astro 프로젝트 정리 (기본 템플릿 예시 파일 제거)
+- [x] CLAUDE.md 프로젝트에 반영 확인
+- [x] TypeScript 설정 확인
+- [x] 폰트 설정 (Pretendard CDN, JetBrains Mono)
+- [x] CSS 변수 / 디자인 토큰 정의 (`global.css`)
+- [x] 다크/라이트 모드 기본 구조 (`data-theme` 속성, localStorage)
+- [x] 콘텐츠 컬렉션 스키마 정의 (`content.config.ts` — title, description, date, category, tags, draft)
 
 ## Phase 2: 레이아웃 & 네비게이션
 
