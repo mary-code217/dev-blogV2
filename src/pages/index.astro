@@ -1,9 +1,78 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+	.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+	.slice(0, 6);
 ---
 
 <BaseLayout title={SITE_TITLE} description={SITE_DESCRIPTION} activeNav="home">
-	<h1>{SITE_TITLE}</h1>
-	<p>{SITE_DESCRIPTION}</p>
+	<section class="home-posts">
+		<h2 class="section-title">최신 글</h2>
+
+		{posts.length > 0 ? (
+			<div class="post-list">
+				{posts.map((post) => (
+					<PostCard
+						title={post.data.title}
+						description={post.data.description}
+						date={post.data.date}
+						category={post.data.category}
+						slug={post.id}
+					/>
+				))}
+			</div>
+		) : (
+			<p class="empty-state">아직 작성된 글이 없습니다.</p>
+		)}
+
+		<div class="view-all">
+			<a href="/blog/" class="view-all__link">전체 글 보기 &rarr;</a>
+		</div>
+	</section>
 </BaseLayout>
+
+<style>
+	.section-title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin: 0 0 var(--space-md) 0;
+	}
+
+	.post-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.empty-state {
+		color: var(--muted);
+		padding: var(--space-xl) 0;
+		text-align: center;
+	}
+
+	.view-all {
+		margin-top: var(--space-lg);
+		text-align: center;
+	}
+
+	.view-all__link {
+		display: inline-flex;
+		align-items: center;
+		padding: 10px 24px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		color: var(--text);
+		font-size: 0.875rem;
+		text-decoration: none;
+		min-height: var(--tap-min-h);
+		transition: background-color 0.2s ease, color 0.2s ease;
+	}
+
+	.view-all__link:hover {
+		background-color: var(--panel);
+		text-decoration: none;
+	}
+</style>
