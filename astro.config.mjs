@@ -8,6 +8,13 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
 	site: 'https://example.com',
 	integrations: [mdx(), sitemap()],
+	vite: {
+		build: {
+			rollupOptions: {
+				external: ['/pagefind/pagefind.js'],
+			},
+		},
+	},
 	markdown: {
 		shikiConfig: {
 			themes: {
