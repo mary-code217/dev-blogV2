@@ -1,0 +1,71 @@
+---
+interface Props {
+	title: string;
+	description: string;
+	date: Date;
+	category: string;
+	slug: string;
+}
+
+const { title, description, date, category, slug } = Astro.props;
+
+const formattedDate = date.toLocaleDateString('ko-KR', {
+	year: 'numeric',
+	month: 'long',
+	day: 'numeric',
+});
+---
+
+<a href={`/blog/${slug}/`} class="post-card">
+	<div class="post-card__meta">
+		<span class="post-card__category">{category}</span>
+		<time datetime={date.toISOString()}>{formattedDate}</time>
+	</div>
+	<h3 class="post-card__title">{title}</h3>
+	<p class="post-card__desc">{description}</p>
+</a>
+
+<style>
+	.post-card {
+		display: block;
+		padding: var(--card-pad);
+		border-bottom: 1px solid var(--border);
+		text-decoration: none;
+		color: var(--text);
+		transition: background-color 0.2s ease;
+	}
+
+	.post-card:hover {
+		background-color: var(--panel);
+		text-decoration: none;
+	}
+
+	.post-card__meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		font-size: 0.875rem;
+		color: var(--muted);
+		margin-bottom: var(--space-xs);
+	}
+
+	.post-card__category {
+		color: var(--accent);
+		font-weight: 600;
+	}
+
+	.post-card__title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		line-height: 1.4;
+		margin: 0 0 var(--space-xs) 0;
+		color: var(--text);
+	}
+
+	.post-card__desc {
+		font-size: 0.875rem;
+		color: var(--muted);
+		line-height: 1.5;
+		margin: 0;
+	}
+</style>
