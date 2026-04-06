@@ -8,14 +8,15 @@ interface Props {
 
 const { activeNav } = Astro.props;
 
+const base = import.meta.env.BASE_URL;
 const nav = [
-	{ id: 'home', label: 'Home', href: '/' },
-	{ id: 'blog', label: 'Blog', href: '/blog/' },
+	{ id: 'home', label: 'Home', href: base },
+	{ id: 'blog', label: 'Blog', href: `${base}blog/` },
 ];
 ---
 
 <aside class="sidebar">
-	<a class="sidebar__title" href="/">{SITE_TITLE}</a>
+	<a class="sidebar__title" href={base}>{SITE_TITLE}</a>
 
 	<nav>
 		<ul class="nav">
