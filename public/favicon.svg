@@ -7,7 +7,10 @@
       .slash { fill: #c7d2fe; }
     }
   </style>
-  <text x="64" y="82" font-family="monospace" font-weight="bold" font-size="72" text-anchor="middle">
-    <tspan class="bracket">&lt;</tspan><tspan class="slash">/</tspan><tspan class="bracket">&gt;</tspan>
-  </text>
+  <!-- < -->
+  <polygon class="bracket" points="8,64 48,30 48,44 26,64 48,84 48,98"/>
+  <!-- / -->
+  <polygon class="slash" points="72,20 80,20 56,108 48,108"/>
+  <!-- > -->
+  <polygon class="bracket" points="120,64 80,30 80,44 102,64 80,84 80,98"/>
 </svg>
