@@ -107,7 +107,7 @@
 		async function loadPagefind() {
 			if (pagefind) return pagefind;
 			try {
-				pagefind = await import('/pagefind/pagefind.js');
+				pagefind = await import(document.querySelector('meta[name="base"]').content + 'pagefind/pagefind.js');
 				await pagefind.init();
 			} catch (e) {
 				pagefind = null;

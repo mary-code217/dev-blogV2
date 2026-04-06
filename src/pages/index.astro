@@ -30,7 +30,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 		)}
 
 		<div class="view-all">
-			<a href="/blog/" class="view-all__link">전체 글 보기 &rarr;</a>
+			<a href={`${import.meta.env.BASE_URL}blog/`} class="view-all__link">전체 글 보기 &rarr;</a>
 		</div>
 	</section>
 </BaseLayout>
