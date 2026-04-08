@@ -156,6 +156,7 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 	/* 본문 */
 	.prose {
 		line-height: 1.75;
+		overflow-x: hidden;
 	}
 
 	.prose :global(h2) {
@@ -341,7 +342,29 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 		padding-left: 1.5em;
 	}
 
+	@media (max-width: 899px) {
+		.post-title {
+			font-size: 1.75rem;
+		}
+
+		.prose :global(h2) {
+			margin-top: 1.5em;
+		}
+
+		.prose :global(pre) {
+			margin: 1em 0;
+		}
+
+		.prose :global(blockquote) {
+			margin: 1em 0;
+		}
+	}
+
 	@media (max-width: 640px) {
+		.post-title {
+			font-size: 1.5rem;
+		}
+
 		.post-nav {
 			grid-template-columns: 1fr;
 		}

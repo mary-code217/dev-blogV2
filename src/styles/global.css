@@ -86,12 +86,54 @@
 		--header-gap: 4px;
 		--quote-pad: 0.85rem;
 	}
+
+	h1 {
+		font-size: 1.75rem;
+	}
+
+	h2 {
+		font-size: 1.35rem;
+	}
+
+	h3 {
+		font-size: 1.15rem;
+	}
+
+	pre {
+		font-size: 0.8rem;
+		padding: 1.2em;
+	}
 }
 
 @media (max-width: 640px) {
 	:root {
 		--pad-x: 18px;
 		--card-pad: 10px 12px;
+	}
+
+	body {
+		font-size: 15px;
+	}
+
+	h1 {
+		font-size: 1.6rem;
+	}
+
+	h2 {
+		font-size: 1.3rem;
+	}
+
+	h3 {
+		font-size: 1.1rem;
+	}
+
+	pre {
+		font-size: 0.78rem;
+		padding: 1em;
+	}
+
+	code {
+		font-size: 0.8rem;
 	}
 }
 
@@ -213,6 +255,8 @@ hr {
 table {
 	width: 100%;
 	border-collapse: collapse;
+	display: block;
+	overflow-x: auto;
 }
 
 th, td {
