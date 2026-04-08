@@ -34,8 +34,8 @@
 	--lightbox-dot-muted: rgba(255, 255, 255, 0.35);
 
 	/* Layout */
-	--max: 900px;
-	--sidebar: 320px;
+	--max: 1100px;
+	--sidebar: 240px;
 	--pad-x: 48px;
 	--tap-min-h: 44px;
 	--card-pad: 12px 14px;
