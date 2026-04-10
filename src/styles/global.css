@@ -230,6 +230,8 @@ pre {
 	border: 1px solid var(--code-border);
 	background-color: var(--code-content-bg);
 	overflow-x: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
 }
 
 pre > code {
