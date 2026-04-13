@@ -5,9 +5,10 @@ interface Props {
 	date: Date;
 	category: string;
 	slug: string;
+	basePath?: string;
 }
 
-const { title, description, date, category, slug } = Astro.props;
+const { title, description, date, category, slug, basePath = 'blog' } = Astro.props;
 
 const formattedDate = date.toLocaleDateString('ko-KR', {
 	year: 'numeric',
@@ -16,7 +17,7 @@ const formattedDate = date.toLocaleDateString('ko-KR', {
 });
 ---
 
-<a href={`${import.meta.env.BASE_URL}blog/${slug}/`} class="post-card">
+<a href={`${import.meta.env.BASE_URL}${basePath}/${slug}/`} class="post-card">
 	<div class="post-card__meta">
 		<span class="post-card__category">{category}</span>
 		<time datetime={date.toISOString()}>{formattedDate}</time>
