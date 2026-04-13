@@ -5,13 +5,14 @@ import CodeBlock from '../components/CodeBlock.astro';
 import { SITE_TITLE } from '../consts';
 
 interface Props {
-	post: CollectionEntry<'blog'>;
-	prevPost?: CollectionEntry<'blog'>;
-	nextPost?: CollectionEntry<'blog'>;
+	post: CollectionEntry<'blog'> | CollectionEntry<'wiki'>;
+	prevPost?: CollectionEntry<'blog'> | CollectionEntry<'wiki'>;
+	nextPost?: CollectionEntry<'blog'> | CollectionEntry<'wiki'>;
 	headings: { depth: number; slug: string; text: string }[];
+	basePath?: string;
 }
 
-const { post, prevPost, nextPost, headings } = Astro.props;
+const { post, prevPost, nextPost, headings, basePath = 'blog' } = Astro.props;
 const { title, description, date, category, tags } = post.data;
 
 const formattedDate = date.toLocaleDateString('ko-KR', {
@@ -67,13 +68,13 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 			<!-- 이전/다음 글 -->
 			<nav class="post-nav">
 				{prevPost ? (
-					<a href={`${import.meta.env.BASE_URL}blog/${prevPost.id}/`} class="post-nav__link post-nav__prev">
+					<a href={`${import.meta.env.BASE_URL}${basePath}/${prevPost.id}/`} class="post-nav__link post-nav__prev">
 						<span class="post-nav__label">&larr; 이전 글</span>
 						<span class="post-nav__title">{prevPost.data.title}</span>
 					</a>
 				) : <div />}
 				{nextPost ? (
-					<a href={`${import.meta.env.BASE_URL}blog/${nextPost.id}/`} class="post-nav__link post-nav__next">
+					<a href={`${import.meta.env.BASE_URL}${basePath}/${nextPost.id}/`} class="post-nav__link post-nav__next">
 						<span class="post-nav__label">다음 글 &rarr;</span>
 						<span class="post-nav__title">{nextPost.data.title}</span>
 					</a>
