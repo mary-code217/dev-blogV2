@@ -72,13 +72,13 @@
 
 ## Phase 9: 위키 기능 추가
 
-- [ ] `content.config.ts`에 wiki 컬렉션 추가 (blog과 동일 스키마)
-- [ ] `src/content/wiki/` 폴더 생성
-- [ ] 사이드바에 Wiki 메뉴 추가 (`Sidebar.astro`)
-- [ ] 위키 목록 페이지 구현 (`/wiki/` — blog 목록과 동일 구조)
-- [ ] 위키 상세 페이지 구현 (`/wiki/{slug}/` — blog 상세와 동일 구조)
-- [ ] 홈 페이지에 위키 섹션 추가 (최신 4개, 작은 스타일)
-- [ ] 위키 activeNav 하이라이팅 확인
+- [x] `content.config.ts`에 wiki 컬렉션 추가 (blog과 동일 스키마)
+- [x] `src/content/wiki/` 폴더 생성
+- [x] 사이드바에 Wiki 메뉴 추가 (`Sidebar.astro`)
+- [x] 위키 목록 페이지 구현 (`/wiki/` — blog 목록과 동일 구조)
+- [x] 위키 상세 페이지 구현 (`/wiki/{slug}/` — blog 상세와 동일 구조)
+- [x] 홈 페이지에는 위키 미표시 (사이드바 메뉴로만 진입)
+- [x] 위키 activeNav 하이라이팅 확인
 - [ ] 위키 검색 동작 확인 (Pagefind 자동 인덱싱)
 
 ## Phase 10: 마무리
