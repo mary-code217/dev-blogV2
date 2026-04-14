@@ -29,6 +29,7 @@ pnpm-debug.log*
 # Claude Code
 .claude/
 CLAUDE.md
+AGENTS.md
 
 # 설계 문서
 docs/
