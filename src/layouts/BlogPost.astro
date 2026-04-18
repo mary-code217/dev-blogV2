@@ -34,13 +34,22 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 					<time datetime={date.toISOString()}>{formattedDate}</time>
 				</div>
 				<h1 class="post-title">{title}</h1>
-				{tags.length > 0 && (
-					<div class="post-tags">
-						{tags.map((tag) => (
-							<span class="post-tag">{tag}</span>
-						))}
-					</div>
-				)}
+				<div class="post-header-bottom">
+					{tags.length > 0 && (
+						<div class="post-tags">
+							{tags.map((tag) => (
+								<span class="post-tag">{tag}</span>
+							))}
+						</div>
+					)}
+					<button class="copy-link-btn" id="copy-link-btn" title="링크 복사">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+							<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+						</svg>
+						<span id="copy-link-label">링크 복사</span>
+					</button>
+				</div>
 			</header>
 
 			<!-- 모바일 TOC -->
@@ -140,6 +149,14 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 		margin: 0 0 var(--space-md) 0;
 	}
 
+	.post-header-bottom {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-sm);
+		flex-wrap: wrap;
+	}
+
 	.post-tags {
 		display: flex;
 		flex-wrap: wrap;
@@ -152,6 +169,32 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 		color: var(--muted);
 		border-radius: 4px;
 		font-size: 0.8rem;
+	}
+
+	.copy-link-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 4px 10px;
+		background: none;
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		color: var(--muted);
+		font-size: 0.8rem;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: color 0.2s ease, border-color 0.2s ease;
+		flex-shrink: 0;
+	}
+
+	.copy-link-btn:hover {
+		color: var(--accent);
+		border-color: var(--accent);
+	}
+
+	.copy-link-btn.copied {
+		color: var(--accent);
+		border-color: var(--accent);
 	}
 
 	/* 본문 */
@@ -413,4 +456,23 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 
 	initScrollSpy();
 	document.addEventListener('astro:after-swap', initScrollSpy);
+
+	function initCopyLink() {
+		const btn = document.getElementById('copy-link-btn');
+		const label = document.getElementById('copy-link-label');
+		if (!btn || !label) return;
+
+		btn.addEventListener('click', async () => {
+			await navigator.clipboard.writeText(window.location.href);
+			btn.classList.add('copied');
+			label.textContent = '복사됨!';
+			setTimeout(() => {
+				btn.classList.remove('copied');
+				label.textContent = '링크 복사';
+			}, 2000);
+		});
+	}
+
+	initCopyLink();
+	document.addEventListener('astro:after-swap', initCopyLink);
 </script>
