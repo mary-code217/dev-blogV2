@@ -87,7 +87,21 @@ collection.put("1", true);   // 가능 — 재할당이 아니라 값 추가
 collection.put("1", false);  // 가능 — 값 변경도 허용됨
 ```
 
-일급 컬렉션은 값을 변경하는 메서드 자체를 제공하지 않아 외부에서 직접 수정할 수 없습니다. 단, 요소 객체 자체가 불변이어야 완전한 불변이 달성됩니다. `pay.setAmount(0)` 같은 호출로 내부 요소의 상태는 여전히 바꿀 수 있기 때문입니다.
+일급 컬렉션은 값을 변경하는 메서드 자체를 제공하지 않아 외부에서 리스트에 요소를 추가하거나 제거할 수 없습니다.
+
+그런데 여기서 한 가지 구분이 필요합니다. 방어적 복사와 변경 메서드 제거로 막을 수 있는 건 **리스트 구조** 자체입니다. 리스트 안에 들어 있는 요소 객체는 별개입니다.
+
+```java
+Pay pay = new Pay(5000);
+ImmutablePays pays = new ImmutablePays(List.of(pay));
+
+pay.setAmount(0);  // Pay 객체를 직접 변경
+// pays 내부의 Pay도 amount = 0이 됨
+```
+
+리스트에 요소를 추가하거나 뺀 게 아닙니다. 리스트 안에 있는 객체의 내용이 바뀐 것입니다. 자물쇠는 채워놨는데 자물쇠 안의 물건 자체가 바뀐 상황입니다.
+
+따라서 완전한 불변을 달성하려면 리스트 구조뿐 아니라 **요소 객체 자체도 불변**이어야 합니다. `Pay`가 `final` 필드만 가지고 setter가 없는 불변 객체라면, 리스트 구조도 요소도 모두 변경할 수 없는 상태가 됩니다.
 
 ```java
 public class ImmutablePays {
@@ -106,15 +120,45 @@ public class ImmutablePays {
 }
 ```
 
-생성자에서 `new ArrayList<>(pays)`로 방어적 복사를 하는 이유도 있습니다. 외부에서 원본 `List`를 계속 참조하고 있을 경우, 그 참조를 통해 내부 상태가 변경되는 것을 막기 위해서입니다.
+생성자에서 `new ArrayList<>(pays)`로 복사하는 이유도 있습니다. 복사하지 않으면 외부의 원본 리스트와 내부의 `pays`가 같은 리스트 객체를 가리키게 됩니다.
 
-내부 리스트를 반환해야 할 때도 마찬가지입니다. 그대로 반환하면 외부에서 리스트를 수정할 수 있으므로, `Collections.unmodifiableList()`로 감싸서 반환하는 것이 일반적입니다.
+```java
+List<Pay> original = new ArrayList<>();
+original.add(new Pay(5000));
+
+ImmutablePays pays = new ImmutablePays(original);  // 복사 없이 그대로 저장했다면
+
+original.add(new Pay(3000));  // 외부에서 원본 수정
+// pays 내부도 요소가 2개가 됨
+```
+
+`new ArrayList<>(pays)`로 복사하면 원본과 내부 리스트가 분리되므로, 외부에서 원본을 수정해도 내부 상태에 영향을 주지 않습니다.
+
+내부 리스트를 반환할 때도 같은 문제가 생깁니다. getter로 내부 리스트를 그대로 반환하면, 외부에서 그 참조를 통해 리스트를 수정할 수 있습니다.
+
+```java
+// 그대로 반환하면
+public List<Pay> getPays() {
+    return pays;
+}
+
+List<Pay> list = immutablePays.getPays();
+list.add(new Pay(9999));  // 내부 pays에 요소가 추가됨
+list.remove(0);           // 내부 pays에서 요소가 삭제됨
+```
+
+변경 메서드를 만들지 않았는데 getter 하나로 내부가 뚫리는 상황입니다. `Collections.unmodifiableList()`로 감싸면 수정 시도 자체를 막을 수 있습니다.
 
 ```java
 public List<Pay> getPays() {
     return Collections.unmodifiableList(pays);
 }
+
+List<Pay> list = immutablePays.getPays();
+list.add(new Pay(9999));  // UnsupportedOperationException 발생
 ```
+
+원본 리스트를 감싼 읽기 전용 뷰를 반환하는 방식이라, 조회는 가능하지만 수정하려 하면 예외가 발생합니다.
 
 ## 5. 상태와 행위를 한 곳에서 관리
 
