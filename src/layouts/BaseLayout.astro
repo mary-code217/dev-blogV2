@@ -17,6 +17,14 @@ const year = new Date().getFullYear();
 <html lang="ko">
 	<head>
 		<BaseHead title={title} description={description} />
+		<!-- Google Analytics -->
+		<script async src="https://www.googletagmanager.com/gtag/js?id=G-GBDJN2XP74"></script>
+		<script>
+			window.dataLayer = window.dataLayer || [];
+			function gtag(){dataLayer.push(arguments);}
+			gtag('js', new Date());
+			gtag('config', 'G-GBDJN2XP74');
+		</script>
 	</head>
 	<body>
 		<div class="shell">
