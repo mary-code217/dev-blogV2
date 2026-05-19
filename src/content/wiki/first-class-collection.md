@@ -32,7 +32,7 @@ if (numbers.size() != 6) throw new IllegalArgumentException();
 // 서비스 B
 if (numbers.size() != 6 || hasDuplicates(numbers)) throw new IllegalArgumentException();
 
-// 서비스 C — 검증을 빠뜨림
+// 서비스 C - 검증을 빠뜨림
 ```
 
 `List<Long>`은 그냥 숫자의 목록일 뿐입니다. 로또 번호라는 도메인 규칙을 스스로 알지 못하기 때문에, 그 책임이 사용하는 쪽으로 새어나갑니다. 규칙이 바뀌면 흩어진 모든 곳을 찾아 수정해야 하고, 어딘가는 빠뜨리게 됩니다.
@@ -77,14 +77,14 @@ public class LottoTicket {
 
 사용하는 쪽에서는 검증을 신경 쓸 필요가 없습니다. `LottoTicket`을 받았다면 이미 올바른 번호라는 것이 보장되기 때문입니다. 규칙이 바뀔 때도 `LottoTicket` 생성자 한 곳만 수정하면 됩니다.
 
-## 4. 불변성 보장 — final의 한계와 방어적 복사
+## 4. 불변성 보장 - final의 한계와 방어적 복사
 
 컬렉션을 불변으로 만들려 할 때 `final` 키워드만으로는 충분하지 않습니다. `final`은 **재할당만 막을 뿐, 컬렉션 안의 값을 변경하는 것은 막지 않습니다.**
 
 ```java
 final Map<String, Boolean> collection = new HashMap<>();
-collection.put("1", true);   // 가능 — 재할당이 아니라 값 추가
-collection.put("1", false);  // 가능 — 값 변경도 허용됨
+collection.put("1", true);   // 가능 - 재할당이 아니라 값 추가
+collection.put("1", false);  // 가능 - 값 변경도 허용됨
 ```
 
 일급 컬렉션은 값을 변경하는 메서드 자체를 제공하지 않아 외부에서 리스트에 요소를 추가하거나 제거할 수 없습니다.
@@ -173,7 +173,7 @@ Long naverPaySum = pays.stream()
         .mapToLong(Pay::getAmount)
         .sum();
 
-// 서비스 B — 같은 로직이 반복됨
+// 서비스 B - 같은 로직이 반복됨
 Long naverPaySum = pays.stream()
         .filter(pay -> PayType.isNaverPay(pay.getPayType()))
         .mapToLong(Pay::getAmount)
@@ -214,7 +214,7 @@ public class PayGroups {
 `List<Pay>`라는 타입만으로는 이것이 네이버페이 목록인지, 카카오페이 목록인지 알 수 없습니다. 변수명에 의존하게 되고, 변수명은 강제되지 않습니다.
 
 ```java
-// 변수명만으로 구분 — 강제되지 않음
+// 변수명만으로 구분 - 강제되지 않음
 List<Pay> naverPays = ...;
 List<Pay> kakaoPays = ...;
 ```

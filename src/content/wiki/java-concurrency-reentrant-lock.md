@@ -32,11 +32,11 @@ tags: ["Java", "Concurrency", "Thread", "ReentrantLock"]
 ```java
 ReentrantLock lock = new ReentrantLock();
 
-lock.lock();    // 락 획득 — 다른 스레드는 여기서 대기
+lock.lock();    // 락 획득 - 다른 스레드는 여기서 대기
 try {
     // 임계 구역: 동시에 하나의 스레드만 실행
 } finally {
-    lock.unlock(); // 락 해제 — 반드시 finally에서 실행
+    lock.unlock(); // 락 해제 - 반드시 finally에서 실행
 }
 ```
 
@@ -49,24 +49,24 @@ try {
 계좌별로 락을 관리하려면 `Map<계좌ID, Lock>` 구조가 필요합니다. 일반 `HashMap`은 멀티스레드 환경에서 내부 상태가 꼬일 수 있습니다.
 
 ```java
-// ❌ HashMap — 멀티스레드 환경에서 위험
+// ❌ HashMap - 멀티스레드 환경에서 위험
 Map<Long, ReentrantLock> locks = new HashMap<>();
 
-// ✅ ConcurrentHashMap — 내부적으로 동기화되어 스레드 안전
+// ✅ ConcurrentHashMap - 내부적으로 동기화되어 스레드 안전
 ConcurrentHashMap<Long, ReentrantLock> locks = new ConcurrentHashMap<>();
 ```
 
 `ConcurrentHashMap`은 맵 자체의 읽기/쓰기를 스레드 안전하게 처리합니다. 다만 이는 맵 연산의 안전성이고, 맵에서 꺼낸 `ReentrantLock` 객체를 통한 임계 구역 보호는 별도로 처리해야 합니다.
 
-## 4. computeIfAbsent — 원자적 생성
+## 4. computeIfAbsent - 원자적 생성
 
 계좌별 락을 처음 사용할 때 생성하는 방식에도 주의가 필요합니다.
 
 ```java
-// ❌ put — 매번 새 락을 생성해서 기존 락을 덮어씀
+// ❌ put - 매번 새 락을 생성해서 기존 락을 덮어씀
 locks.put(accountId, new ReentrantLock());
 
-// ✅ computeIfAbsent — 없을 때만 생성
+// ✅ computeIfAbsent - 없을 때만 생성
 ReentrantLock lock = locks.computeIfAbsent(accountId, id -> new ReentrantLock());
 ```
 
@@ -99,7 +99,7 @@ public class InMemoryAccountLock implements AccountLock {
     @Override
     public void releaseAccount(Long accountId) {
         ReentrantLock lock = locks.get(accountId);
-        // isHeldByCurrentThread() — 현재 스레드가 보유한 락만 해제
+        // isHeldByCurrentThread() - 현재 스레드가 보유한 락만 해제
         // 보유하지 않은 락을 unlock()하면 IllegalMonitorStateException 발생
         if (lock != null && lock.isHeldByCurrentThread()) {
             lock.unlock();

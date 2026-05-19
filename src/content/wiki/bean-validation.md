@@ -60,7 +60,7 @@ if (!violations.isEmpty()) {
 동작은 하지만 검증이 필요한 곳마다 같은 코드를 반복해야 합니다.
 `ValidatorFactory` 생성 비용도 크기 때문에 매번 새로 만드는 것은 비효율적입니다.
 
-## 4. SelfValidating — 생성 시점 검증 패턴
+## 4. SelfValidating - 생성 시점 검증 패턴
 
 반복을 줄이기 위해 `SelfValidating` 추상 클래스를 두고 Command 객체가 상속받게 합니다.
 생성자에서 `validateSelf()`를 호출하면 `new` 시점에 즉시 검증이 실행됩니다.
