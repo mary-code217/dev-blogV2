@@ -30,7 +30,7 @@ public ProblemDetail handleNegativeMoney(...) { ... }
 
 근본적인 문제는 예외들이 서로 연결되어 있지 않다는 점입니다. 세 예외 모두 "도메인 규칙 위반"이라는 공통점이 있는데, 코드에는 그 관계가 없습니다.
 
-## 2. DomainException — 공통 부모로 묶기
+## 2. DomainException - 공통 부모로 묶기
 
 공통 부모 예외를 하나 만들면 핸들러 하나로 모든 도메인 예외를 처리할 수 있습니다.
 
@@ -76,9 +76,9 @@ public class NegativeMoneyException extends DomainException {
 
 ```
 DomainException
-├── AccountNotFoundException  — 계좌를 찾을 수 없을 때  (404)
-├── WithdrawFailException     — 잔액 부족 등 출금 실패 시 (400)
-└── NegativeMoneyException    — 음수 금액 생성 시도 시   (400)
+├── AccountNotFoundException  - 계좌를 찾을 수 없을 때  (404)
+├── WithdrawFailException     - 잔액 부족 등 출금 실패 시 (400)
+└── NegativeMoneyException    - 음수 금액 생성 시도 시   (400)
 ```
 
 새 도메인 예외를 추가해도 핸들러는 수정할 필요가 없습니다. 상태 코드도 각 예외가 스스로 결정하므로 핸들러에서 따로 분기하지 않아도 됩니다.
@@ -102,7 +102,7 @@ domain/
 
 DB 연결 실패처럼 인프라에서 발생하는 예외는 `DomainException`을 상속하지 않습니다. 이런 예외는 `GlobalExceptionHandler`의 `Exception` 폴백 핸들러가 잡아서 `500 Internal Server Error`로 처리합니다.
 
-## 4. @RestControllerAdvice — 전역 예외 처리
+## 4. @RestControllerAdvice - 전역 예외 처리
 
 `@RestControllerAdvice`는 모든 Controller에서 발생하는 예외를 한 곳에서 처리합니다. `@ControllerAdvice`와 `@ResponseBody`를 합친 메타 어노테이션으로, Spring이 Controller에서 발생한 예외를 이 클래스로 위임하는 메커니즘입니다.
 
@@ -159,7 +159,7 @@ public class GlobalExceptionHandler {
 
 도메인 예외는 `WARN`, 예상치 못한 예외는 `ERROR`로 구분합니다. 두 로그 레벨을 분리하면 알림 임계값을 다르게 설정할 수 있어 운영에서 불필요한 알림 노이즈를 줄일 수 있습니다.
 
-## 5. ProblemDetail — RFC 9457 표준 에러 응답
+## 5. ProblemDetail - RFC 9457 표준 에러 응답
 
 `ProblemDetail`은 Spring 6에서 도입된 표준 에러 응답 형식입니다. [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)(RFC 7807을 대체한 최신 스펙)에 정의된 구조를 그대로 구현한 것으로, 클라이언트가 에러 응답을 일관된 형식으로 파싱할 수 있습니다.
 
@@ -196,7 +196,7 @@ public class GlobalExceptionHandler {
 실패를 반환값으로 처리하면 Controller가 분기를 직접 다뤄야 합니다.
 
 ```java
-// ❌ 반환값으로 실패를 처리 — 분기가 Controller에 들어옴
+// ❌ 반환값으로 실패를 처리 - 분기가 Controller에 들어옴
 boolean result = sendMoneyUseCase.sendMoney(command);
 if (!result) {
     return ResponseEntity.badRequest().body("계좌이체 실패");
@@ -207,7 +207,7 @@ return ResponseEntity.ok("계좌이체 완료");
 실패를 예외로 처리하면 Controller에는 성공 흐름만 남습니다. UseCase 내부에서 규칙 위반이 발생하면 `DomainException`을 던지고, `GlobalExceptionHandler`가 이를 잡아 일관된 에러 응답으로 변환합니다.
 
 ```java
-// ✅ 실패는 예외로 — Controller는 성공 흐름만 담당
+// ✅ 실패는 예외로 - Controller는 성공 흐름만 담당
 sendMoneyUseCase.sendMoney(command);
 return ResponseEntity.ok("계좌이체가 완료되었습니다.");
 ```
