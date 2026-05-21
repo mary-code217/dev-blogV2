@@ -24,7 +24,7 @@ const formattedDate = date.toLocaleDateString('ko-KR', {
 const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 ---
 
-<BaseLayout title={`${title} - ${SITE_TITLE}`} description={description} activeNav="blog">
+<BaseLayout title={`${title} - ${SITE_TITLE}`} description={description} activeNav={basePath}>
 	<div class="post-layout">
 		<article class="post-content">
 			<!-- 글 헤더 -->
