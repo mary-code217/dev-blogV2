@@ -7,7 +7,7 @@ const terms = [...glossary].sort((a, b) => a.term.localeCompare(b.term, 'ko'));
 const categories = [...new Set(terms.map((t) => t.category))].sort();
 ---
 
-<BaseLayout title={`사전 - ${SITE_TITLE}`} description="개발 용어를 한눈에 정리한 사전" activeNav="dict">
+<BaseLayout title={`Dict - ${SITE_TITLE}`} description="개발 용어를 한눈에 정리한 사전" activeNav="dict">
 	<section class="dict">
 		<h1 class="page-title">Dict</h1>
 		<p class="page-desc">개발하면서 마주친 용어들을 모아둔 공간</p>
