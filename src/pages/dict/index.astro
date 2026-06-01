@@ -5,6 +5,10 @@ import { glossary } from '../../data/glossary';
 
 const terms = [...glossary].sort((a, b) => a.term.localeCompare(b.term, 'ko'));
 const categories = [...new Set(terms.map((t) => t.category))].sort();
+
+// 독립적으로 흐르는 2개 세로 컬럼으로 분할 (한 카드를 열면 그 컬럼만 밀림)
+const mid = Math.ceil(terms.length / 2);
+const columns = [terms.slice(0, mid), terms.slice(mid)];
 ---
 
 <BaseLayout title={`Dict - ${SITE_TITLE}`} description="개발 용어를 한눈에 정리한 사전" activeNav="dict">
@@ -33,18 +37,27 @@ const categories = [...new Set(terms.map((t) => t.category))].sort();
 
 		<!-- 카드 그리드 -->
 		<div class="dict-grid" id="dict-grid">
-			{terms.map((t) => (
-				<article
-					class="dict-card"
-					data-category={t.category}
-					data-search={`${t.term} ${t.description}`.toLowerCase()}
-				>
-					<div class="dict-card__head">
-						<h2 class="dict-card__term">{t.term}</h2>
-						<span class="dict-card__cat">{t.category}</span>
-					</div>
-					<p class="dict-card__desc">{t.description}</p>
-				</article>
+			{columns.map((col) => (
+				<div class="dict-col">
+					{col.map((t) => (
+						<details
+							class="dict-card"
+							data-category={t.category}
+							data-search={`${t.term} ${t.description}`.toLowerCase()}
+						>
+							<summary class="dict-card__head">
+								<h2 class="dict-card__term">{t.term}</h2>
+								<span class="dict-card__right">
+									<span class="dict-card__cat">{t.category}</span>
+									<svg class="dict-card__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+										<polyline points="6 9 12 15 18 9" />
+									</svg>
+								</span>
+							</summary>
+							<p class="dict-card__desc">{t.description}</p>
+						</details>
+					))}
+				</div>
 			))}
 		</div>
 
@@ -122,13 +135,26 @@ const categories = [...new Set(terms.map((t) => t.category))].sort();
 	}
 
 	.dict-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		display: flex;
+		align-items: flex-start;
 		gap: var(--space-md);
 	}
 
+	.dict-col {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-md);
+	}
+
+	@media (max-width: 640px) {
+		.dict-grid {
+			flex-direction: column;
+		}
+	}
+
 	.dict-card {
-		padding: var(--space-md);
 		border: 1px solid var(--border);
 		border-radius: 10px;
 		background-color: var(--bg);
@@ -141,15 +167,21 @@ const categories = [...new Set(terms.map((t) => t.category))].sort();
 
 	.dict-card:hover {
 		border-color: var(--accent);
-		background-color: var(--panel);
 	}
 
 	.dict-card__head {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-sm);
-		margin-bottom: var(--space-xs);
+		padding: var(--space-md);
+		cursor: pointer;
+		list-style: none;
+		user-select: none;
+	}
+
+	.dict-card__head::-webkit-details-marker {
+		display: none;
 	}
 
 	.dict-card__term {
@@ -157,6 +189,22 @@ const categories = [...new Set(terms.map((t) => t.category))].sort();
 		font-weight: 700;
 		margin: 0;
 		line-height: 1.3;
+	}
+
+	.dict-card__right {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		flex-shrink: 0;
+	}
+
+	.dict-card__chevron {
+		color: var(--faint);
+		transition: transform 0.2s ease;
+	}
+
+	.dict-card[open] .dict-card__chevron {
+		transform: rotate(180deg);
 	}
 
 	.dict-card__cat {
@@ -168,15 +216,12 @@ const categories = [...new Set(terms.map((t) => t.category))].sort();
 		border-radius: 4px;
 	}
 
-	.dict-card:hover .dict-card__cat {
-		background-color: var(--bg);
-	}
-
 	.dict-card__desc {
 		font-size: 0.875rem;
 		color: var(--muted);
 		line-height: 1.6;
 		margin: 0;
+		padding: 0 var(--space-md) var(--space-md);
 	}
 
 	.empty-state {
