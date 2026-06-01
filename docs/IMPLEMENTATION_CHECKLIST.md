@@ -89,3 +89,13 @@
 - [x] 모바일 반응형 전체 점검
 - [ ] Lighthouse 성능 체크 (배포 후)
 - [x] 설계 문서 최종 업데이트
+
+## Phase 11: 사전(Dict) 기능 추가
+
+- [x] 용어 데이터 파일 생성 (`src/data/glossary.ts` — term, description, category)
+- [x] 사이드바에 Dict 메뉴 추가 (`Sidebar.astro`)
+- [x] 사전 페이지 구현 (`/dict/` — 카드 그리드)
+- [x] 카테고리 필터 (영문 컨벤션: Web, Frontend 등)
+- [x] 페이지 내 자체 용어 검색 (Pagefind 아님, 즉시 필터)
+- [x] 용어명 기준 정렬 + 빈 상태 처리
+- [x] Dict activeNav 하이라이팅 확인
