@@ -12,7 +12,7 @@ const categories = [...new Set(posts.map((p) => p.data.category))].sort();
 const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 ---
 
-<BaseLayout title={`글 목록 - ${SITE_TITLE}`} description={SITE_DESCRIPTION} activeNav="blog">
+<BaseLayout title={`Blog - ${SITE_TITLE}`} description={SITE_DESCRIPTION} activeNav="blog">
 	<section class="blog-list">
 		<h1 class="page-title">Blog</h1>
 
