@@ -10,7 +10,7 @@ export const glossary: GlossaryTerm[] = [
 		term: 'RSS',
 		category: 'Web',
 		description:
-			'Really Simple Syndication. 사이트의 새 글 목록을 정해진 XML 형식으로 제공해, 독자가 RSS 리더로 구독할 수 있게 하는 표준 포맷.',
+			'Really Simple Syndication. 사이트의 새 글 목록을 XML 기반 피드로 제공해, 독자가 피드 리더로 구독할 수 있게 하는 형식. RSS는 0.9x·1.0·2.0 등 여러 버전이 있고, IETF가 표준화한 Atom(RFC 4287)과 함께 대표적인 웹 피드 포맷으로 쓰인다.',
 	},
 	{
 		term: '스레드 큐잉',
@@ -70,7 +70,7 @@ export const glossary: GlossaryTerm[] = [
 		term: 'Thundering Herd',
 		category: 'Backend',
 		description:
-			'천둥 떼 현상. 대기하던 다수의 요청·프로세스가 동시에 깨어나 같은 자원으로 몰려 백엔드가 폭주하는 문제. 캐시 동시 만료(cache stampede)가 대표 사례다.',
+			'천둥 떼 현상. 한 자원·이벤트를 대기하던 다수의 요청·프로세스가 동시에 깨어나 몰려들지만 실제로는 하나(소수)만 자원을 차지하고 나머지는 헛되이 깨어났다 다시 대기하며 자원을 낭비해 백엔드가 폭주하는 문제. 캐시가 동시에 만료돼 여러 요청이 한꺼번에 원본을 다시 조회하는 캐시 스탬피드(cache stampede)가 대표 사례다.',
 	},
 	{
 		term: '라운드트립',
@@ -88,7 +88,7 @@ export const glossary: GlossaryTerm[] = [
 		term: '카디널리티',
 		category: 'Observability',
 		description:
-			'Cardinality. 메트릭에서 라벨(태그) 값이 가질 수 있는 고유 조합의 수. 사용자 ID·요청 경로처럼 값 종류가 많은 라벨을 붙이면 시계열이 폭증(cardinality explosion)해 Prometheus 같은 시계열 DB의 메모리·저장 부하가 급증한다.',
+			'Cardinality. 메트릭이 만들어내는 고유 시계열의 수, 즉 메트릭 이름과 라벨 값들의 고유 조합 수. 사용자 ID·요청 경로처럼 값 종류가 많은(라벨 자체의 카디널리티가 높은) 라벨을 붙이면 조합이 곱셈으로 불어나 시계열이 폭증(cardinality explosion)하고, Prometheus 같은 시계열 DB의 메모리·저장 부하가 급증한다.',
 	},
 	{
 		term: '메트릭',
