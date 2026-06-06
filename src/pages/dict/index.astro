@@ -37,12 +37,13 @@ const columns = [terms.slice(0, mid), terms.slice(mid)];
 
 		<!-- 카드 그리드 -->
 		<div class="dict-grid" id="dict-grid">
-			{columns.map((col) => (
+			{columns.map((col, colIdx) => (
 				<div class="dict-col">
-					{col.map((t) => (
+					{col.map((t, i) => (
 						<details
 							class="dict-card"
 							data-category={t.category}
+							data-order={colIdx === 0 ? i : mid + i}
 							data-search={`${t.term} ${t.description}`.toLowerCase()}
 						>
 							<summary class="dict-card__head">
@@ -237,12 +238,13 @@ const columns = [terms.slice(0, mid), terms.slice(mid)];
 		let query = '';
 
 		const cards = Array.from(document.querySelectorAll<HTMLElement>('.dict-card'));
+		const cols = Array.from(document.querySelectorAll<HTMLElement>('#dict-grid .dict-col'));
 		const catBtns = document.querySelectorAll<HTMLButtonElement>('#category-filter .filter-btn');
 		const input = document.getElementById('dict-search') as HTMLInputElement | null;
 		const emptyState = document.getElementById('empty-state');
 
 		function render() {
-			let visible = 0;
+			const visible: HTMLElement[] = [];
 			cards.forEach((card) => {
 				const cat = card.dataset.category || '';
 				const text = card.dataset.search || '';
@@ -250,9 +252,21 @@ const columns = [terms.slice(0, mid), terms.slice(mid)];
 				const queryMatch = !query || text.includes(query);
 				const show = catMatch && queryMatch;
 				card.hidden = !show;
-				if (show) visible++;
+				if (show) visible.push(card);
 			});
-			if (emptyState) emptyState.hidden = visible > 0;
+
+			// 보이는 카드만 원래 정렬 순서대로 좌→우 두 컬럼에 재분배
+			if (cols.length >= 2) {
+				visible.sort(
+					(a, b) => Number(a.dataset.order || 0) - Number(b.dataset.order || 0),
+				);
+				const half = Math.ceil(visible.length / 2);
+				visible.forEach((card, i) => {
+					cols[i < half ? 0 : 1].appendChild(card);
+				});
+			}
+
+			if (emptyState) emptyState.hidden = visible.length > 0;
 		}
 
 		catBtns.forEach((btn) => {
