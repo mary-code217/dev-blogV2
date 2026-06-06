@@ -78,4 +78,22 @@ export const glossary: GlossaryTerm[] = [
 		description:
 			'Round-trip. 클라이언트와 서버 간 왕복 통신 1회. 횟수가 많을수록 네트워크 지연이 누적되므로 줄이는 것이 성능에 유리하다.',
 	},
+	{
+		term: 'APM',
+		category: 'Observability',
+		description:
+			'Application Performance Monitoring. 애플리케이션의 응답 시간, 처리량, 오류율, 트랜잭션 흐름 등을 추적해 성능 문제와 병목을 진단하는 모니터링. 코드 레벨까지 들여다봐 느린 쿼리·외부 호출 등을 짚어낸다.',
+	},
+	{
+		term: '카디널리티',
+		category: 'Observability',
+		description:
+			'Cardinality. 메트릭에서 라벨(태그) 값이 가질 수 있는 고유 조합의 수. 사용자 ID·요청 경로처럼 값 종류가 많은 라벨을 붙이면 시계열이 폭증(cardinality explosion)해 Prometheus 같은 시계열 DB의 메모리·저장 부하가 급증한다.',
+	},
+	{
+		term: '메트릭',
+		category: 'Observability',
+		description:
+			'Metric. 시스템 상태를 시간에 따라 수치로 측정한 시계열 데이터(요청 수, 응답 시간, CPU 사용률 등). 라벨로 차원을 나눠 집계·필터하며, 카운터·게이지·히스토그램 같은 타입으로 표현한다. 로그·트레이스와 함께 관측성의 세 기둥을 이룬다.',
+	},
 ];
