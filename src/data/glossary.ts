@@ -96,4 +96,34 @@ export const glossary: GlossaryTerm[] = [
 		description:
 			'Metric. 시스템 상태를 시간에 따라 수치로 측정한 시계열 데이터(요청 수, 응답 시간, CPU 사용률 등). 라벨로 차원을 나눠 집계·필터하며, 카운터·게이지·히스토그램 같은 타입으로 표현한다. 로그·트레이스와 함께 관측성의 세 기둥을 이룬다.',
 	},
+	{
+		term: '멱등성',
+		category: 'Backend',
+		description:
+			'Idempotence. 같은 작업을 한 번 실행하든 여러 번 실행하든 결과(서버 상태)가 동일하게 유지되는 성질. HTTP에서 GET·PUT·DELETE는 멱등하지만 POST·PATCH는 그렇지 않다. 네트워크 재시도나 중복 요청에도 부작용이 없어, 결제·통계 배치·메시지 처리 설계에서 안전한 재실행을 보장하는 핵심 원칙이다.',
+	},
+	{
+		term: 'CTE',
+		category: 'Database',
+		description:
+			'Common Table Expression. WITH 절로 정의하는, 한 쿼리 안에서만 존재하는 임시 결과 집합. 복잡한 쿼리를 이름 붙인 단계로 쪼개 가독성을 높이고, WITH RECURSIVE로 트리·그래프 같은 계층 구조를 한 번에 조회한다. 재귀 CTE는 문법상 재귀지만 내부적으로는 반복(iterative)으로 평가된다.',
+	},
+	{
+		term: 'EAV',
+		category: 'Database',
+		description:
+			'Entity-Attribute-Value. 속성을 컬럼이 아닌 행(Row)에 (엔티티, 속성, 값) 형태로 저장하는 동적 설계 패턴. 스키마 변경 없이 속성을 자유롭게 추가할 수 있어 상품 스펙·설문처럼 속성이 가변적이고 희소한 데이터에 쓰이지만, 조회 시 조인·피벗이 많아 성능과 무결성 관리가 어렵다.',
+	},
+	{
+		term: '폐쇄 테이블 모델',
+		category: 'Database',
+		description:
+			'Closure Table. 트리의 모든 조상-자손 경로(자기 자신 포함)를 별도 테이블에 미리 저장해 두는 계층 구조 모델. parent_id 방식과 달리 서브트리·조상 조회를 조인 한 번으로 처리해 읽기 성능이 뛰어나지만, 관계 행 수가 늘어 저장 공간을 더 쓴다. Bill Karwin의 『SQL Antipatterns』에서 소개된 대표적 계층 설계 기법이다.',
+	},
+	{
+		term: '역정규화',
+		category: 'Database',
+		description:
+			'Denormalization. 읽기 성능을 위해 의도적으로 정규화를 일부 깨고 중복 데이터(미리 계산된 집계·복제 컬럼 등)를 허용하는 기법. 조인을 줄여 조회를 빠르게 하는 대신 저장 공간과 쓰기 비용이 늘고 데이터 정합성 관리 부담이 커진다. 통계·집계 테이블이나 대시보드처럼 읽기가 많은 환경에서 주로 쓰인다.',
+	},
 ];
