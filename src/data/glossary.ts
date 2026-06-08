@@ -126,4 +126,76 @@ export const glossary: GlossaryTerm[] = [
 		description:
 			'Denormalization. 읽기 성능을 위해 의도적으로 정규화를 일부 깨고 중복 데이터(미리 계산된 집계·복제 컬럼 등)를 허용하는 기법. 조인을 줄여 조회를 빠르게 하는 대신 저장 공간과 쓰기 비용이 늘고 데이터 정합성 관리 부담이 커진다. 통계·집계 테이블이나 대시보드처럼 읽기가 많은 환경에서 주로 쓰인다.',
 	},
+	{
+		term: 'RAG',
+		category: 'RAG',
+		description:
+			'Retrieval-Augmented Generation. LLM이 답하기 전, 외부 지식베이스에서 관련 문서를 검색해 프롬프트에 함께 넣어 생성하는 기법. 모델 재학습 없이 최신·사내 정보를 반영하고 환각을 줄인다.',
+	},
+	{
+		term: '임베딩',
+		category: 'RAG',
+		description:
+			'Embedding. 텍스트를 의미가 가까울수록 벡터 공간에서 가깝게 배치되도록 변환한 고정 차원 실수 벡터(차원 수는 모델마다 다르며 흔히 768·1536 등). 의미 기반 유사도 검색의 토대.',
+	},
+	{
+		term: '벡터 스토어',
+		category: 'RAG',
+		description:
+			'Vector Store. 임베딩 벡터를 저장하고 유사도 검색을 지원하는 저장소. PostgreSQL의 pgvector 확장이 대표적이며, Spring AI는 VectorStore 인터페이스로 구현체(인메모리·pgvector 등)를 추상화한다.',
+	},
+	{
+		term: '청킹',
+		category: 'RAG',
+		description:
+			'Chunking. 긴 문서를 임베딩·검색에 적합한 작은 조각(청크)으로 분할하는 과정. 청크가 작으면 검색은 정확하나 맥락이 부족하고, 크면 그 반대라 크기·오버랩 조정이 품질을 좌우한다.',
+	},
+	{
+		term: '인제스트',
+		category: 'RAG',
+		description:
+			'Ingestion. 원문서를 읽어(Extract) → 청킹·메타데이터 강화(Transform) → 임베딩 후 벡터 스토어에 적재(Load)하는 ETL 파이프라인. RAG의 "검색 재료"를 만드는 단계.',
+	},
+	{
+		term: '코사인 유사도',
+		category: 'RAG',
+		description:
+			'Cosine Similarity. 두 벡터가 이루는 각도의 코사인으로 방향 유사도를 재는 척도. 값 범위는 −1~1이다(1=같은 방향, 0=직교/무관, −1=정반대). 임베딩 검색에서는 보통 양수 영역에 분포하며, 코사인 거리(=1−유사도)의 보수로 쓰인다.',
+	},
+	{
+		term: 'HNSW',
+		category: 'RAG',
+		description:
+			'Hierarchical Navigable Small World. 고차원 벡터의 근사 최근접 이웃(ANN)을 빠르게 찾는 그래프 기반 인덱스. 다층 그래프 위에서 탐욕 탐색으로 후보를 좁히며, pgvector가 지원하고 정확도·속도 균형이 좋다.',
+	},
+	{
+		term: 'Top-K',
+		category: 'RAG',
+		description:
+			'검색 시 유사도 상위 K개 청크만 반환하는 파라미터(topK). 보통 임계값(similarityThreshold) 미만 점수는 버린다. 1차로 넓게 검색한 뒤 Reranker로 좁히는 2단계 전략에 쓰인다.',
+	},
+	{
+		term: 'RRF',
+		category: 'RAG',
+		description:
+			'Reciprocal Rank Fusion. 점수 스케일이 다른 여러 검색 결과를 절대 점수 대신 순위만으로 1/(k+rank) 합산해 병합하는 알고리즘(rank는 1부터). Hybrid Search 결과 결합에 표준적으로 쓰이며 보통 k=60.',
+	},
+	{
+		term: 'HyDE',
+		category: 'RAG',
+		description:
+			'Hypothetical Document Embeddings. 질문을 그대로 임베딩하지 않고 LLM이 가상의 답변을 먼저 생성한 뒤 그 답변을 임베딩해 검색하는 기법. 질문과 문서가 임베딩 공간에서 잘 정렬되지 않는 형식 불일치(query-document 비대칭)를 완화한다.',
+	},
+	{
+		term: 'Reranker',
+		category: 'RAG',
+		description:
+			'1차 검색으로 넓게 가져온 후보를 "이 청크가 질문에 실제로 답할 수 있는가" 기준으로 LLM(또는 cross-encoder 전용 모델)이 다시 채점해 재정렬하는 후처리. 벡터 유사도만으로 놓치는 정답을 상위로 끌어올린다.',
+	},
+	{
+		term: 'Semantic Cache',
+		category: 'RAG',
+		description:
+			'과거 질문의 임베딩과 비교해 유사도가 임계값(예: 0.95) 이상이면 캐시된 답변을 재사용하는 캐시. 표현만 다른 반복 질문에 LLM 호출 0회로 응답한다. 임계값이 낮으면 의미가 다른 질문에 잘못 응답하는 false hit가, 높으면 캐시 미스가 늘어 임계값 튜닝이 관건이다.',
+	},
 ];
