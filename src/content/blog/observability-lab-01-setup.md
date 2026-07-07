@@ -4,13 +4,12 @@ description: "장애 대응 경험을 만들기 위해 메트릭과 로그 2축 
 date: 2026-07-08T12:00:00+09:00
 category: "Backend"
 tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
-draft: true
 ---
 
 > **이 글의 한 줄**: baseline(정상)을 알아야 이상(장애)이 보인다.
 >
 > "모니터링 장애 대응 실습" 4부작의 1편이다.
-> **1편(현재 글)** · [2편. 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/) · 3편(예정) · 4편(예정)
+> **1편(현재 글)** · 2편(작성 중) · 3편(예정) · 4편(예정)
 
 ## 면접에서 말끝이 흐려졌다
 
@@ -40,7 +39,7 @@ draft: true
 
 ## 구축하며 막힌 곳들
 
-전체 설정 파일은 [저장소](https://github.com/mary-code217/spring-observability-lab)에 있으니, 여기엔 막혔던 지점만 남긴다. 이 다섯 개가 이 글에서 제일 값진 부분일 것이다.
+전체 설정 파일을 나열하는 건 이 글의 목적이 아니니, 막혔던 지점만 남긴다. 이 다섯 개가 이 글에서 제일 값진 부분일 것이다.
 
 **1. p95/p99 패널이 빈 화면이었다.** Micrometer Timer는 기본으로 count/sum/max만 노출한다. 분위수 패널을 그리려면 히스토그램 버킷 노출 설정 한 줄이 필요했다.
 
@@ -89,4 +88,4 @@ management.metrics.distribution.percentiles-histogram.http.server.requests: true
 
 정상이 보이니 이제 이상을 만들 차례다. 다음 편에서는 DB 커넥션 풀을 고갈시키고, 100만 행 풀스캔으로 응답을 지연시킨다. 같은 "자원" 장애인데 하나는 **에러율 93%**로 비명을 질렀고, 하나는 **에러 0건인 채 조용히 11배** 느려졌다. 에러율 패널만 보고 있었다면 두 번째 장애는 놓쳤을 것이다.
 
-다음 편: [모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/)
+다음 편: 모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일 (작성 중)
