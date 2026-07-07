@@ -1,6 +1,6 @@
 ---
 title: "모니터링 장애 대응 실습 1편 - 정상이 뭔지 모르면 장애도 못 본다"
-description: "장애 대응 경험을 만들기 위해 메트릭과 로그 2축 관측 환경을 직접 구성하고, 이후 모든 장애 판단의 기준이 될 baseline을 확보한 기록."
+description: "장애 대응 경험을 만들기 위해 Spring Boot 앱에 Prometheus, Grafana, Loki 관측 스택을 직접 구성하고, k6 부하로 p95/p99, 에러율, HikariCP의 baseline을 확보한 기록."
 date: 2026-07-08T12:00:00+09:00
 category: "Backend"
 tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
@@ -31,15 +31,15 @@ tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
 선택하면서 고민한 지점들:
 
 - **메트릭 축**은 고민이 짧았다. Spring이면 Actuator + Micrometer + Prometheus가 사실상 표준이다.
-- **로그 수집은 OpenTelemetry를 쓰지 않았다.** OTLP appender와 collector 층이 하나 더 생기는데, 장애를 일부러 내는 실습에서 수집 파이프라인이 먼저 장애 나면 곤란하다. 앱은 Logback으로 JSON 파일만 남기고, **Grafana Alloy가 그 파일을 tail 해서 Loki로 push**하는 단순한 구조를 택했다.
+- **로그 수집은 OpenTelemetry를 쓰지 않았다.** OTLP appender와 collector 층이 하나 더 생기는데, 장애를 일부러 내는 실습에서 수집 파이프라인에 먼저 장애가 나면 곤란하다. 앱은 Logback으로 JSON 파일만 남기고, **Grafana Alloy가 그 파일을 tail 해서 Loki로 push**하는 단순한 구조를 택했다.
 - **ELK 대신 Loki**를 쓴 것도 같은 이유다. 노트북 도커에 컨테이너 6개(앱, PostgreSQL, Prometheus, Loki, Alloy, Grafana)를 띄워야 하는 환경에서, 전문 인덱싱을 하는 Elasticsearch는 이 실습엔 과했다. Loki는 라벨만 인덱싱해서 가볍다.
 - **트레이스(Tempo 등)는 뺐다.** 단일 서비스에 DB 하나인 구조라 메트릭과 로그 2축으로 탐지에서 원인 추적까지 닫힌다고 판단했다. 이 판단이 맞았는지는 4편에서 돌아본다.
 
-부하는 k6로 만든다. 대상 앱은 Spring Boot 3.5(Java 21) + PostgreSQL 16이고, 느린 쿼리 실습(2편)을 위해 **product 테이블에 100만 행**을 미리 시드해뒀다.
+부하는 k6로 만든다. 대상 앱은 Spring Boot 3.5(Java 21) + PostgreSQL 16이고, 느린 쿼리 실습(2편)을 위해 **`product` 테이블에 100만 행**을 미리 시드해뒀다.
 
 ## 구축하며 막힌 곳들
 
-전체 설정 파일을 나열하는 건 이 글의 목적이 아니니, 막혔던 지점만 남긴다. 이 다섯 개가 이 글에서 제일 값진 부분일 것이다.
+전체 설정 파일을 나열하는 건 이 글의 목적이 아니니, 막혔던 지점만 남긴다. 단순한 설정 삽질이 아니라, 정상 상태를 믿을 수 있는 기준으로 만들기 위해 반드시 정리해야 했던 것들이다.
 
 **1. p95/p99 패널이 빈 화면이었다.** Micrometer Timer는 기본으로 count/sum/max만 노출한다. 분위수 패널을 그리려면 히스토그램 버킷 노출 설정 한 줄이 필요했다.
 
@@ -47,13 +47,19 @@ tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
 management.metrics.distribution.percentiles-histogram.http.server.requests: true
 ```
 
-참고로 `_max`는 scrape 구간의 단일 최댓값일 뿐 p99가 아니다. 처음엔 이걸로 때우려다 그래프가 널뛰는 걸 보고 접었다.
+대시보드의 p95 패널은 이렇게 노출된 버킷으로 계산한다.
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[1m])))
+```
+
+원본 응답시간을 정렬해 구한 값이 아니라 버킷 기반 추정치라는 것도 이때 알았다. 참고로 `_max`는 슬라이딩 시간 창(기본 약 2분)의 최댓값일 뿐 p99가 아니다. 처음엔 이걸로 때우려다 그래프가 널뛰는 걸 보고 접었다.
 
 **2. 에러율 패널이 "No data"였다.** 5xx가 0건이면 분자 쿼리가 빈 결과를 반환해 패널 자체가 비어버린다. `or vector(0)`을 붙여 **0% 평선**이 그려지게 했다. "정상이라 0%"와 "데이터가 없음"은 운영 화면에서 완전히 다른 메시지다.
 
 **3. requestId를 Loki 라벨로 넣으면 안 된다.** 요청마다 바뀌는 UUID를 라벨로 두면 시계열이 요청 수만큼 폭발한다(카디널리티 문제). 라벨은 `app`, `level` 두 개만 두고, requestId는 로그 본문 필드로 넣어 `| json | requestId=...`로 검색하게 했다.
 
-**4. scrape 주기는 5초로 줄였다.** 기본 15초로는 빠르게 진행되는 장애의 결정적 구간을 놓칠 수 있다고 봤는데, 이 선택은 2편에서 바로 보상받는다. 커넥션 풀 대기열이 **첫 scrape 5초 만에 0에서 45로 점프**하는 걸 잡아냈다.
+**4. scrape 주기는 5초로 줄였다.** 기본 15초로는 빠르게 진행되는 장애의 결정적 구간을 놓칠 수 있다고 봤는데, 이 선택은 2편에서 바로 보상받는다. 커넥션 풀 대기열이 **첫 scrape 5초 만에 0에서 45로 점프**하는 걸 잡아냈다. 물론 실습이라 부담 없이 줄인 것이고, 운영이라면 저장 비용과 rate 윈도우 크기를 함께 따져야 한다.
 
 **5. 소소하지만 시간을 먹은 것들.** Loki 공식 이미지엔 wget이 없어 compose healthcheck를 걸 수 없었고(Alloy의 push 재시도로 대체), Windows에서는 Alloy 기본 포트 12345가 예약 포트 범위와 충돌해 12100으로 옮겼다. Grafana 데이터소스 uid를 고정하지 않으면 환경 재구축 시 대시보드 참조가 깨진다는 것도 한 번 깨지고 나서 알았다. 그래서 대시보드는 UI에서 클릭으로 만들지 않고 **JSON으로 직접 작성해 Git으로 관리**한다. 스택을 지우고 다시 띄워도 같은 화면이 자동으로 뜬다.
 
@@ -67,10 +73,12 @@ management.metrics.distribution.percentiles-histogram.http.server.requests: true
 
 | 지표 | baseline 값 |
 |------|-------------|
-| TPS | 약 8.3 req/s |
+| 처리량 | 약 8.3 RPS |
 | p95 레이턴시 | **41.7ms** (평균 10ms) |
 | 실패율 | 0.00% (504건 전부 성공) |
 | HikariCP | active 0~1, pending 0 |
+
+이 수치는 로컬 Docker 환경에서 10 VU가 1분간 같은 API 믹스를 호출한 결과다. 절대 성능값이라기보다, 이후 장애 실험을 같은 조건에서 비교하기 위한 기준선이다.
 
 ![부하가 흐르는 동안의 baseline 대시보드](/dev-blogV2/images/observability-lab/baseline-load-overview.png)
 
