@@ -1,7 +1,7 @@
 ---
 title: "모니터링 장애 대응 실습 1편 - 정상이 뭔지 모르면 장애도 못 본다"
 description: "장애 대응 경험을 만들기 위해 메트릭과 로그 2축 관측 환경을 직접 구성하고, 이후 모든 장애 판단의 기준이 될 baseline을 확보한 기록."
-date: 2026-07-08
+date: 2026-07-08T12:00:00+09:00
 category: "Backend"
 tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
 draft: true
