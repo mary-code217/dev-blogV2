@@ -1,7 +1,7 @@
 ---
 title: "모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일, 커넥션 풀 고갈과 느린 쿼리"
 description: "HikariCP 풀 고갈은 에러율 93%로 비명을 질렀고, 100만 행 풀스캔은 에러 0건인 채 11배 느려졌다. 같은 자원 장애, 정반대 신호를 추적한 기록."
-date: 2026-07-08
+date: 2026-07-08T11:00:00+09:00
 category: "Backend"
 tags: ["Monitoring", "Database", "HikariCP", "PostgreSQL", "Performance"]
 draft: true
