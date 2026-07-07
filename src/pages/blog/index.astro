@@ -5,7 +5,7 @@ import PostCard from '../../components/PostCard.astro';
 import Search from '../../components/Search.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../../consts';
 
-const posts = (await getCollection('blog', ({ data }) => !data.draft))
+const posts = (await getCollection('blog', ({ data }) => (import.meta.env.PROD ? !data.draft : true)))
 	.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 const categories = [...new Set(posts.map((p) => p.data.category))].sort();

@@ -4,8 +4,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/PostCard.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 
-const blogPosts = await getCollection('blog', ({ data }) => !data.draft);
-const wikiPosts = await getCollection('wiki', ({ data }) => !data.draft);
+// draft 글은 프로덕션 빌드에서만 제외 (dev에서는 미리보기 가능)
+const blogPosts = await getCollection('blog', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
+const wikiPosts = await getCollection('wiki', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
 
 const posts = [
 	...blogPosts.map((post) => ({ ...post, basePath: 'blog' })),
