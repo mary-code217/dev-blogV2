@@ -9,7 +9,7 @@ tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
 > **이 글의 한 줄**: baseline(정상)을 알아야 이상(장애)이 보인다.
 >
 > "모니터링 장애 대응 실습" 4부작의 1편이다.
-> **1편(현재 글)** · 2편(작성 중) · 3편(예정) · 4편(예정)
+> **1편(현재 글)** · [2편. 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/) · 3편(예정) · 4편(예정)
 
 ## 장애 대응 경험은 기다린다고 오지 않는다
 
@@ -96,4 +96,4 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[1
 
 정상이 보이니 이제 이상을 만들 차례다. 다음 편에서는 DB 커넥션 풀을 고갈시키고, 100만 행 풀스캔으로 응답을 지연시킨다. 같은 "자원" 장애인데 하나는 **에러율 93%**로 비명을 질렀고, 하나는 **에러 0건인 채 조용히 11배** 느려졌다. 에러율 패널만 보고 있었다면 두 번째 장애는 놓쳤을 것이다.
 
-다음 편: 모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일 (작성 중)
+다음 편: [모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/)
