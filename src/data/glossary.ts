@@ -79,6 +79,18 @@ export const glossary: GlossaryTerm[] = [
 			'Round-trip. 클라이언트와 서버 간 왕복 통신 1회. 횟수가 많을수록 네트워크 지연이 누적되므로 줄이는 것이 성능에 유리하다.',
 	},
 	{
+		term: 'OSIV',
+		category: 'Backend',
+		description:
+			'Open Session In View. HTTP 요청이 시작될 때 연 영속성 컨텍스트를, 트랜잭션이 끝난 뒤에도 응답이 완료될 때까지(REST는 응답 반환, MVC는 뷰 렌더링까지) 유지하는 설정. 덕분에 트랜잭션 밖에서도 지연 로딩이 가능해 LazyInitializationException을 피하지만, DB 커넥션을 요청 내내 붙잡고 있어 트래픽이 몰리면 커넥션 풀 고갈로 이어진다. Spring Boot 기본값은 켜짐(spring.jpa.open-in-view=true)이라 시작 시 경고 로그를 남기며, 끄면(false) 커넥션은 @Transactional 메서드가 끝나는 즉시 반환된다.',
+	},
+	{
+		term: '백프레셔',
+		category: 'Backend',
+		description:
+			'Backpressure. 리액티브 스트림에서 구독자(Subscriber)가 감당할 수 있는 만큼만 request(n)로 수요를 신호하고, 발행자(Publisher)는 그 수요를 넘겨 데이터를 밀어내지 않도록 하는 흐름 제어. push가 아닌 수요(demand) 기반으로 동작해, 비동기 경계 사이 큐를 유한하게 유지하고 무한정 버퍼링을 막는다. 생산자가 소비자보다 빠를 때 시스템이 무너지는 것을 방지하는 Reactive Streams 표준(Project Reactor·RxJava·Spring WebFlux 등)의 핵심 개념이다.',
+	},
+	{
 		term: 'APM',
 		category: 'Observability',
 		description:
