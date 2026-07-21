@@ -9,7 +9,7 @@ tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
 > **이 글의 한 줄**: baseline(정상)을 알아야 이상(장애)이 보인다.
 >
 > "모니터링 장애 대응 실습" 4부작의 1편이다.
-> **1편(현재 글)** · [2편. 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/) · 3편(예정) · 4편(예정)
+> **1편(현재 글)** · [2편. 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/) · [3편. 앱이 죽어가는 신호](/dev-blogV2/blog/observability-lab-03-failure/) · 4편(예정)
 
 ## 장애 대응 경험은 기다린다고 오지 않는다
 
