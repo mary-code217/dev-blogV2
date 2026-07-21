@@ -219,6 +219,7 @@ code {
 	background-color: var(--panel);
 	border-radius: 4px;
 	color: var(--code-text);
+	white-space: nowrap;
 }
 
 pre {
