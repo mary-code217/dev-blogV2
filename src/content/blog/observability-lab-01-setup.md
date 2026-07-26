@@ -53,7 +53,7 @@ management.metrics.distribution.percentiles-histogram.http.server.requests: true
 histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[1m])))
 ```
 
-원본 응답시간을 정렬해 구한 값이 아니라 버킷 기반 추정치라는 것도 이때 알았습니다. 참고로 `_max`는 슬라이딩 시간 창(기본 약 2분)의 최댓값일 뿐 p99가 아닙니다. 처음엔 이걸로 때우려다 그래프가 널뛰는 걸 보고 접었습니다.
+원본 응답시간을 정렬해 구한 값이 아니라 버킷 기반 추정치라는 것도 이때 알았습니다. 이 추정이 실제 값과 얼마나 어긋나는지는 [응답 시간 백분위](/dev-blogV2/wiki/latency-percentile-p50-p95-p99/)에 따로 정리했습니다. 참고로 `_max`는 슬라이딩 시간 창(기본 약 2분)의 최댓값일 뿐 p99가 아닙니다. 처음엔 이걸로 때우려다 그래프가 널뛰는 걸 보고 접었습니다.
 
 **2. 에러율 패널이 "No data"였습니다.** 5xx가 0건이면 분자 쿼리가 빈 결과를 반환해 패널 자체가 비어버립니다. `or vector(0)`을 붙여 **0% 평선**이 그려지게 했습니다. "정상이라 0%"와 "데이터가 없음"은 운영 화면에서 완전히 다른 메시지입니다.
 

@@ -15,6 +15,8 @@ tags: ["Monitoring", "Observability", "Performance", "Prometheus", "SLO"]
 이 글은 p50, p95, p99가 각각 무엇을 재는 지표인지, 그 값이 어떻게 만들어지는지,
 그리고 Prometheus로 뽑은 p99가 실제 값과 어떻게 어긋나는지까지 정리합니다.
 
+이 지표들을 실제 장애 상황에서 어떻게 읽었는지는 [모니터링 장애 대응 실습](/dev-blogV2/blog/observability-lab-01-setup/) 시리즈에 따로 적어뒀습니다.
+
 ## 1. 평균 69.7ms 뒤에 8초가 숨어 있다
 
 어떤 API의 1분간 응답 시간이 이렇게 나왔다고 해봅시다. 요청은 총 1,000건입니다.
