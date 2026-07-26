@@ -21,4 +21,9 @@ const wiki = defineCollection({
 	schema: contentSchema,
 });
 
-export const collections = { blog, wiki };
+const ai = defineCollection({
+	loader: glob({ base: './src/content/ai', pattern: '**/*.{md,mdx}' }),
+	schema: contentSchema,
+});
+
+export const collections = { blog, wiki, ai };

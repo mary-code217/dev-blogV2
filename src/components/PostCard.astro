@@ -10,7 +10,8 @@ interface Props {
 }
 
 const { title, description, date, category, slug, basePath = 'blog', showType = false } = Astro.props;
-const typeLabel = basePath === 'wiki' ? 'Wiki' : 'Blog';
+const TYPE_LABELS: Record<string, string> = { blog: 'Blog', wiki: 'Wiki', ai: 'AI' };
+const typeLabel = TYPE_LABELS[basePath] ?? 'Blog';
 
 const formattedDate = date.toLocaleDateString('ko-KR', {
 	year: 'numeric',
@@ -78,6 +79,11 @@ const formattedDate = date.toLocaleDateString('ko-KR', {
 		color: #1d4ed8;
 	}
 
+	.post-card__type--ai {
+		background-color: #dcfce7;
+		color: #15803d;
+	}
+
 	:global(:root[data-theme='dark']) .post-card__type--blog {
 		background-color: rgba(248, 113, 113, 0.18);
 		color: #fca5a5;
@@ -86,6 +92,11 @@ const formattedDate = date.toLocaleDateString('ko-KR', {
 	:global(:root[data-theme='dark']) .post-card__type--wiki {
 		background-color: rgba(96, 165, 250, 0.18);
 		color: #93c5fd;
+	}
+
+	:global(:root[data-theme='dark']) .post-card__type--ai {
+		background-color: rgba(74, 222, 128, 0.18);
+		color: #86efac;
 	}
 
 	.post-card__title {

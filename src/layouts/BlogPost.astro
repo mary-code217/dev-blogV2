@@ -5,9 +5,9 @@ import CodeBlock from '../components/CodeBlock.astro';
 import { SITE_TITLE } from '../consts';
 
 interface Props {
-	post: CollectionEntry<'blog'> | CollectionEntry<'wiki'>;
-	prevPost?: CollectionEntry<'blog'> | CollectionEntry<'wiki'>;
-	nextPost?: CollectionEntry<'blog'> | CollectionEntry<'wiki'>;
+	post: CollectionEntry<'blog'> | CollectionEntry<'wiki'> | CollectionEntry<'ai'>;
+	prevPost?: CollectionEntry<'blog'> | CollectionEntry<'wiki'> | CollectionEntry<'ai'>;
+	nextPost?: CollectionEntry<'blog'> | CollectionEntry<'wiki'> | CollectionEntry<'ai'>;
 	headings: { depth: number; slug: string; text: string }[];
 	basePath?: string;
 }

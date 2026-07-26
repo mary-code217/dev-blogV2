@@ -7,10 +7,12 @@ import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 // draft 글은 프로덕션 빌드에서만 제외 (dev에서는 미리보기 가능)
 const blogPosts = await getCollection('blog', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
 const wikiPosts = await getCollection('wiki', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
+const aiPosts = await getCollection('ai', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
 
 const posts = [
 	...blogPosts.map((post) => ({ ...post, basePath: 'blog' })),
 	...wikiPosts.map((post) => ({ ...post, basePath: 'wiki' })),
+	...aiPosts.map((post) => ({ ...post, basePath: 'ai' })),
 ]
 	.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
 	.slice(0, 6);
@@ -42,6 +44,7 @@ const posts = [
 			<div class="view-all">
 				<a href={`${import.meta.env.BASE_URL}blog/`} class="view-all__link">Blog 전체 보기 &rarr;</a>
 				<a href={`${import.meta.env.BASE_URL}wiki/`} class="view-all__link">Wiki 전체 보기 &rarr;</a>
+				<a href={`${import.meta.env.BASE_URL}ai/`} class="view-all__link">AI 전체 보기 &rarr;</a>
 			</div>
 		</section>
 </BaseLayout>
