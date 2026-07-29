@@ -40,12 +40,6 @@ const posts = [
 			) : (
 				<p class="empty-state">아직 작성된 글이 없습니다.</p>
 			)}
-
-			<div class="view-all">
-				<a href={`${import.meta.env.BASE_URL}blog/`} class="view-all__link">Blog 전체 보기 &rarr;</a>
-				<a href={`${import.meta.env.BASE_URL}wiki/`} class="view-all__link">Wiki 전체 보기 &rarr;</a>
-				<a href={`${import.meta.env.BASE_URL}ai/`} class="view-all__link">AI 전체 보기 &rarr;</a>
-			</div>
 		</section>
 </BaseLayout>
 
@@ -66,31 +60,4 @@ const posts = [
 		padding: var(--space-xl) 0;
 		text-align: center;
 	}
-
-	.view-all {
-		margin-top: var(--space-lg);
-		display: flex;
-		justify-content: center;
-		gap: var(--space-sm);
-		flex-wrap: wrap;
-	}
-
-	.view-all__link {
-		display: inline-flex;
-		align-items: center;
-		padding: 10px 24px;
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		color: var(--text);
-		font-size: 0.875rem;
-		text-decoration: none;
-		min-height: var(--tap-min-h);
-		transition: background-color 0.2s ease, color 0.2s ease;
-	}
-
-	.view-all__link:hover {
-		background-color: var(--panel);
-		text-decoration: none;
-	}
-
 </style>
