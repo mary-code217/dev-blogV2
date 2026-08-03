@@ -228,4 +228,100 @@ export const glossary: GlossaryTerm[] = [
 		description:
 			'Service Level Objective. 서비스가 지키기로 정한 목표치(예: "p95 응답 시간 300ms 이내"). 목표를 재는 데 쓰는 실측 지표는 SLI(Service Level Indicator)라 부르고, 목표에서 허용되는 실패분은 에러 버짓이라 한다. 고객과 맺는 계약인 SLA와 달리 내부 기준이라 더 엄격하게 잡는 것이 보통이다.',
 	},
+	{
+		term: 'TTL',
+		category: 'Backend',
+		description:
+			'Time To Live. 키가 자동으로 삭제되기까지 남은 시간(초)을 뜻한다. Redis에서 TTL이 지나면 값이 사라지고, TTL이 없는 키를 조회하면 -1, 키 자체가 없으면 -2가 반환된다.',
+	},
+	{
+		term: '캡드 리스트',
+		category: 'Backend',
+		description:
+			'Capped List. LTRIM으로 항상 최근 N개만 남도록 잘라내는 Redis List 활용 패턴. 알림 목록처럼 전체 이력이 아니라 최근 것 몇 개만 보여주면 되는 데이터에 쓴다.',
+	},
+	{
+		term: 'RDB/AOF',
+		category: 'Backend',
+		description:
+			'Redis Database / Append Only File. Redis가 메모리 데이터를 디스크에 남기는 두 가지 영속성 방식. RDB는 특정 시점의 스냅숏을 통째로 저장하고, AOF는 실행된 쓰기 명령을 순서대로 기록해 재실행한다. 둘 다 켜지 않으면 재시작 시 데이터가 전부 유실된다.',
+	},
+	{
+		term: 'CGLIB 프록시',
+		category: 'Backend',
+		description:
+			'Code Generation Library Proxy. 스프링이 @Cacheable 같은 AOP 기능을 적용하기 위해 대상 클래스를 상속해서 만드는 대리 객체. Objenesis로 생성자를 거치지 않고 만들어지므로, 이 프록시의 필드에 직접 접근하면 초기화되지 않은 값(null)을 읽게 된다. AOP가 걸린 빈은 상태를 항상 getter로 노출해야 하는 이유다.',
+	},
+	{
+		term: 'Fixed Window Counter',
+		category: 'Backend',
+		description:
+			'정해진 시간 창(윈도우) 안에서 요청 횟수를 세는 레이트리밋 방식. INCR로 카운트를 올리고 그 카운트가 1이 되는 순간(윈도우의 첫 요청)에만 TTL을 걸어 구현한다. INCR와 EXPIRE가 원자적으로 묶여 있지 않으면, 그 사이 프로세스가 죽었을 때 TTL 없는 카운터가 영영 안 풀릴 수 있다.',
+	},
+	{
+		term: 'EVALSHA',
+		category: 'Backend',
+		description:
+			'Redis에 미리 캐싱된 Lua 스크립트를 SHA1 해시로 실행하는 명령어. 스크립트를 한 번 EVAL로 실행하면 Redis가 스크립트 본문을 해시로 캐싱해 두고, 이후 호출부터는 본문 재전송 없이 이 해시만으로 실행을 요청한다.',
+	},
+	{
+		term: '분산락',
+		category: 'Backend',
+		description:
+			'Distributed Lock. 여러 서버(프로세스)가 공유하는 락. 자바 인메모리 락은 서버 한 대 안에서만 유효하므로, 서버를 여러 대로 스케일아웃하면 Redis 같은 공유 저장소 기반의 락이 필요해진다.',
+	},
+	{
+		term: 'RLock',
+		category: 'Backend',
+		description:
+			'Redisson이 제공하는 분산락 객체. lock()/unlock()으로 락을 잡고 풀며, 재진입과 워치독 자동 연장을 함께 지원한다.',
+	},
+	{
+		term: '재진입(락)',
+		category: 'Backend',
+		description:
+			'Reentrant Lock. 같은 스레드가 이미 잡고 있는 락을 다시 요청해도 즉시 성공하는 성질. Redisson의 RLock은 재진입을 지원해 같은 락을 두 번 lock()해도 통과하지만, hold count가 2가 되므로 unlock()도 정확히 두 번 해야 완전히 풀린다.',
+	},
+	{
+		term: '워치독',
+		category: 'Backend',
+		description:
+			'Watchdog. Redisson이 락을 자동 연장해 주는 백그라운드 메커니즘. leaseTime을 지정하지 않고 락을 걸면, 락을 쥔 스레드가 살아있는 동안 내부적으로 TTL을 계속 갱신해 락이 중간에 풀리지 않는다. 스레드가 죽으면 갱신이 멈춰 결국 TTL대로 풀린다.',
+	},
+	{
+		term: 'HyperLogLog',
+		category: 'Backend',
+		description:
+			'개별 원소를 저장하지 않고 서로 다른 원소의 개수(카디널리티)만 아주 작은 고정 메모리(약 12KB)로 근사 추정하는 확률적 자료구조. 해시값 비트 패턴에서 선행 0이 연속된 길이를 여러 그룹(레지스터)에 나눠 기록해 두고, 그 값들을 조합해 개수를 역산한다. Redis에서는 PFADD/PFCOUNT/PFMERGE 명령어로 쓴다.',
+	},
+	{
+		term: 'PFADD',
+		category: 'Backend',
+		description:
+			'HyperLogLog에 원소를 추가하는 Redis 명령어. 원소를 해시해 어느 레지스터에 속하는지 계산하고, 그 레지스터에 이미 기록된 값보다 클 때만 갱신한다. 같은 원소를 몇 번을 추가해도 항상 같은 레지스터의 같은 값이 나올 뿐이라 카운트가 늘지 않는 멱등적 명령이다.',
+	},
+	{
+		term: 'PFCOUNT',
+		category: 'Backend',
+		description:
+			'HyperLogLog가 추정한 카디널리티를 조회하는 Redis 명령어. 개별 원소를 저장하지 않고 근사 추정하는 구조라 정확한 값이 아니며, Redis 구현 기준 표준 오차는 약 0.81%다.',
+	},
+	{
+		term: 'PFMERGE',
+		category: 'Backend',
+		description:
+			'여러 HyperLogLog 키를 하나로 합치는 Redis 명령어. 합친 결과의 PFCOUNT는 원본 키들의 개수를 단순히 더한 값이 아니라, 겹치는 원소를 한 번만 세는 합집합 기준 유니크 개수를 근사한다.',
+	},
+	{
+		term: 'Count-Min Sketch',
+		category: 'Backend',
+		description:
+			'HyperLogLog와 같은 확률적 자료구조 계열이지만, 카디널리티가 아니라 원소별 등장 빈도를 근사하는 데 쓰인다. Redis 코어에는 없고 RedisBloom 모듈의 CMS.INCRBY 등으로 제공된다.',
+	},
+	{
+		term: 'Lettuce',
+		category: 'Backend',
+		description:
+			'Spring Data Redis가 기본으로 쓰는 Redis 클라이언트. Netty 기반이라 커넥션 하나로 여러 요청을 동시에 처리(멀티플렉싱)할 수 있어, JDBC처럼 요청마다 커넥션을 물고 있을 필요가 없다.',
+	},
 ];
