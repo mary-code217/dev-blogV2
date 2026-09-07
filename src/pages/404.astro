@@ -1,0 +1,293 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_TITLE } from '../consts';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout
+	title={`페이지를 찾을 수 없습니다 - ${SITE_TITLE}`}
+	description="요청하신 주소에 해당하는 페이지가 없습니다."
+>
+	<section class="notfound">
+		<div class="notfound__scene">
+			<svg viewBox="0 0 200 210" role="img" aria-label="길을 잃은 유령 그림">
+				<ellipse class="shadow" cx="100" cy="190" rx="44" ry="9"></ellipse>
+
+				<text class="q q1" x="146" y="52" font-size="26">?</text>
+				<text class="q q2" x="34" y="66" font-size="19">?</text>
+
+				<g class="ghost">
+					<path
+						class="body"
+						d="M 50 96
+							a 50 50 0 0 1 100 0
+							L 150 158
+							q -12.5 -15 -25 0
+							q -12.5 15 -25 0
+							q -12.5 -15 -25 0
+							q -12.5 15 -25 0
+							Z"></path>
+					<g class="eyes">
+						<g class="blink">
+							<ellipse class="eye" cx="84" cy="100" rx="6.5" ry="8.5"></ellipse>
+							<ellipse class="eye" cx="116" cy="100" rx="6.5" ry="8.5"></ellipse>
+						</g>
+						<ellipse class="blush" cx="70" cy="118" rx="8" ry="5"></ellipse>
+						<ellipse class="blush" cx="130" cy="118" rx="8" ry="5"></ellipse>
+						<path class="mouth" d="M 93 120 q 7 8 14 0"></path>
+					</g>
+				</g>
+			</svg>
+		</div>
+
+		<span class="notfound__tag">404</span>
+		<h1 class="notfound__title">여기엔 아무것도 없는데요</h1>
+		<p class="notfound__desc">주소가 바뀌었거나, 처음부터 없던 페이지입니다.</p>
+
+		<div class="notfound__links">
+			<a class="btn btn--primary" href={base}>홈으로</a>
+			<a class="btn" href={`${base}blog/`}>블로그</a>
+			<a class="btn" href={`${base}wiki/`}>위키</a>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.notfound {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		padding: var(--space-xl) 0;
+	}
+
+	.notfound__scene {
+		width: 190px;
+		height: 200px;
+	}
+
+	.notfound__scene svg {
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+
+	/* ----- 유령 ----- */
+
+	.body {
+		fill: var(--panel);
+		stroke: var(--border);
+		stroke-width: 2;
+	}
+
+	.eye {
+		fill: var(--text);
+	}
+
+	.blush {
+		fill: var(--accent);
+		opacity: 0.22;
+	}
+
+	.mouth {
+		fill: none;
+		stroke: var(--text);
+		stroke-width: 2;
+		stroke-linecap: round;
+	}
+
+	.shadow {
+		fill: var(--faint);
+		transform-box: fill-box;
+		transform-origin: center;
+		animation: nf-shadow 3.2s ease-in-out infinite;
+	}
+
+	.q {
+		fill: var(--accent);
+		font-weight: 700;
+		opacity: 0;
+	}
+
+	/* 둥실둥실 */
+	.ghost {
+		animation: nf-float 3.2s ease-in-out infinite;
+	}
+
+	/* 눈이 좌우로 두리번 */
+	.eyes {
+		animation: nf-look 4.6s ease-in-out infinite;
+	}
+
+	/* 가끔 깜빡 */
+	.blink {
+		transform-box: fill-box;
+		transform-origin: center;
+		animation: nf-blink 4.6s ease-in-out infinite;
+	}
+
+	.q1 {
+		animation: nf-pop 3.2s ease-in-out infinite;
+	}
+
+	.q2 {
+		animation: nf-pop 3.2s ease-in-out 0.55s infinite;
+	}
+
+	@keyframes nf-float {
+		0%,
+		100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-11px);
+		}
+	}
+
+	@keyframes nf-look {
+		0%,
+		12% {
+			transform: translateX(0);
+		}
+		26%,
+		40% {
+			transform: translateX(-5px);
+		}
+		54%,
+		68% {
+			transform: translateX(5px);
+		}
+		82%,
+		100% {
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes nf-blink {
+		0%,
+		45%,
+		49%,
+		78%,
+		82%,
+		100% {
+			transform: scaleY(1);
+		}
+		47%,
+		80% {
+			transform: scaleY(0.12);
+		}
+	}
+
+	@keyframes nf-shadow {
+		0%,
+		100% {
+			transform: scale(1);
+			opacity: 0.24;
+		}
+		50% {
+			transform: scale(0.78);
+			opacity: 0.14;
+		}
+	}
+
+	@keyframes nf-pop {
+		0%,
+		55% {
+			opacity: 0;
+			transform: translateY(6px) scale(0.7);
+		}
+		70% {
+			opacity: 0.9;
+			transform: translateY(-4px) scale(1);
+		}
+		100% {
+			opacity: 0;
+			transform: translateY(-14px) scale(0.9);
+		}
+	}
+
+	/* ----- 본문 ----- */
+
+	.notfound__tag {
+		display: inline-block;
+		padding: 3px 10px;
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: var(--accent);
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 20px;
+	}
+
+	.notfound__title {
+		margin: var(--space-md) 0 0 0;
+		font-size: 1.5rem;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+	}
+
+	.notfound__desc {
+		margin: var(--space-sm) 0 0 0;
+		color: var(--muted);
+		font-size: 0.95rem;
+	}
+
+	.notfound__links {
+		margin-top: var(--space-lg);
+		display: flex;
+		gap: var(--space-sm);
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--tap-min-h);
+		padding: 0 var(--space-md);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		color: var(--text);
+		text-decoration: none;
+		font-size: 0.9rem;
+		transition:
+			border-color 0.15s,
+			color 0.15s,
+			background 0.15s;
+	}
+
+	.btn:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: var(--panel);
+	}
+
+	.btn--primary {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: #fff;
+	}
+
+	.btn--primary:hover {
+		background: var(--accent);
+		color: #fff;
+		opacity: 0.88;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ghost,
+		.eyes,
+		.blink,
+		.shadow,
+		.q1,
+		.q2 {
+			animation: none;
+		}
+
+		.q {
+			opacity: 0.8;
+		}
+	}
+</style>
