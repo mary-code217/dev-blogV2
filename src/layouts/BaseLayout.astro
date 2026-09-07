@@ -7,16 +7,23 @@ interface Props {
 	title: string;
 	description: string;
 	activeNav?: string;
+	ogType?: 'website' | 'article';
+	publishedDate?: Date;
 }
 
-const { title, description, activeNav } = Astro.props;
+const { title, description, activeNav, ogType, publishedDate } = Astro.props;
 const year = new Date().getFullYear();
 ---
 
 <!doctype html>
 <html lang="ko">
 	<head>
-		<BaseHead title={title} description={description} />
+		<BaseHead
+			title={title}
+			description={description}
+			ogType={ogType}
+			publishedDate={publishedDate}
+		/>
 		<!-- Google Analytics -->
 		<script async src="https://www.googletagmanager.com/gtag/js?id=G-GBDJN2XP74"></script>
 		<script>
