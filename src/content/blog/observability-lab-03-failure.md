@@ -10,9 +10,9 @@ draft: false
 > **이 글의 한 줄**: 추세형(메모리)과 급변형(에러)은 잡는 법도, 알림 거는 법도 다릅니다.
 >
 > "모니터링 장애 대응 실습" 4부작의 3편입니다.
-> [1편. 정상이 뭔지 모르면 장애도 못 본다](/dev-blogV2/blog/observability-lab-01-setup/) · [2편. 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/) · **3편(현재 글)** · 4편(예정)
+> [1편. 정상이 뭔지 모르면 장애도 못 본다](/blog/observability-lab-01-setup/) · [2편. 자원이 마르면 생기는 일](/blog/observability-lab-02-resource/) · **3편(현재 글)** · 4편(예정)
 
-[2편](/dev-blogV2/blog/observability-lab-02-resource/)의 두 장애는 DB라는 같은 뿌리에서 나왔습니다. 이번 편의 두 장애는 성격 자체가 다릅니다. **메모리는 서서히 무너지고, 에러는 갑자기 터집니다.** 하나는 몇 분에 걸쳐 힙 그래프가 기울다가 앱째로 죽었고, 하나는 부하를 걸자마자 에러율이 0에서 20%로 수직 상승했습니다. 미리 결론을 하나 흘리자면, 이번 편에서 이 시리즈의 공식("메트릭으로 탐지하고, 로그로 원인을 좁힌다")이 처음으로 막힙니다. 죽는 순간의 로그가 어디에도 남지 않았기 때문입니다.
+[2편](/blog/observability-lab-02-resource/)의 두 장애는 DB라는 같은 뿌리에서 나왔습니다. 이번 편의 두 장애는 성격 자체가 다릅니다. **메모리는 서서히 무너지고, 에러는 갑자기 터집니다.** 하나는 몇 분에 걸쳐 힙 그래프가 기울다가 앱째로 죽었고, 하나는 부하를 걸자마자 에러율이 0에서 20%로 수직 상승했습니다. 미리 결론을 하나 흘리자면, 이번 편에서 이 시리즈의 공식("메트릭으로 탐지하고, 로그로 원인을 좁힌다")이 처음으로 막힙니다. 죽는 순간의 로그가 어디에도 남지 않았기 때문입니다.
 
 ## 장애 3. 힙 그래프에서 톱니가 사라졌다
 
@@ -37,15 +37,15 @@ public class LeakyStore {
 
 1편에서 봤던 정상 힙 그래프는 톱니 모양입니다. 쌓이다가 GC가 회수하면 뚝 떨어지고, 다시 쌓이는 반복.
 
-![baseline의 힙 패널. 오르내리는 톱니 모양](/dev-blogV2/images/observability-lab/s3-baseline-jvm-heap.png)
+![baseline의 힙 패널. 오르내리는 톱니 모양](/images/observability-lab/s3-baseline-jvm-heap.png)
 
 부하를 걸자 이 톱니가 사라졌습니다. **떨어지는 구간 없이 32MB에서 110MB까지 우상향만 했습니다.** GC가 돌아도 회수할 게 없다는 뜻입니다. 살아있는 객체(컬렉션이 쥔 chunk)만 쌓이고 있으니까요.
 
-![incident의 힙 패널. 톱니 없이 우상향하다 그래프가 끊긴다](/dev-blogV2/images/observability-lab/s3-incident-jvm-heap.png)
+![incident의 힙 패널. 톱니 없이 우상향하다 그래프가 끊긴다](/images/observability-lab/s3-incident-jvm-heap.png)
 
 동시에 GC pause 횟수가 급증했습니다. 회수할 것도 없는데 한계에 몰린 JVM이 GC만 반복해서 돌리는 구간입니다.
 
-![incident의 GC 패널. pause 횟수가 급증](/dev-blogV2/images/observability-lab/s3-incident-jvm-gc.png)
+![incident의 GC 패널. pause 횟수가 급증](/images/observability-lab/s3-incident-jvm-gc.png)
 
 그리고 그래프가 **뚝 끊겼습니다.** OOM으로 앱이 죽으면서 Prometheus scrape 자체가 실패하기 시작한 것입니다. 설계 단계에서 리스크로 적어뒀던 "죽는 순간 관측도 같이 죽는다"가 그대로 재현됐습니다. 이 그래프의 끝은 데이터가 0이 된 게 아니라 **데이터가 오지 않는 것**이고, 실시간으로 보고 있지 않았다면 놓쳤을 마지막 지표는 사후에 시간 범위를 되돌려 캡처해야 했습니다.
 
@@ -80,7 +80,7 @@ Exception: java.lang.OutOfMemoryError thrown from the UncaughtExceptionHandler
 
 답을 찾다 보니 used 그래프의 높이는 살아있는 객체 크기만으로 정해지는 게 아니었습니다. 살아있는 건 10청크(5MB)뿐이어도, 요청마다 512KB짜리 쓰레기가 쏟아지면 G1은 힙에 여유가 있는 동안 회수를 서두르지 않습니다. 게다가 512KB는 128MB짜리 작은 힙에서는 기본 GC인 G1이 덩치 큰 객체로 따로 분류하는 크기입니다(이른바 humongous 객체). 일반 객체와 회수되는 방식이 달라 회수가 더 늦었을 수도 있습니다. GC 로그를 안 남겨서 어느 쪽이 주범인지 확정하지는 못했습니다. 다만 상한(살아있는 객체 축소)에 **요청당 적재량 축소**(512KB에서 128KB로)를 더하고 나서야 그래프가 내려온 것은 분명했습니다.
 
-![recovery의 힙 패널. 35~56MB 사이의 톱니로 복귀](/dev-blogV2/images/observability-lab/s3-recovery-jvm-heap.png)
+![recovery의 힙 패널. 35~56MB 사이의 톱니로 복귀](/images/observability-lab/s3-recovery-jvm-heap.png)
 
 같은 5 VU 부하에서 힙은 35~56MB 톱니로 안정됐고, 576건 전부 실패 없이 살아남았습니다. 톱니가 돌아왔다는 건 GC가 회수할 수 있는 구조가 됐다는 뜻입니다. 재발 방지는 **힙 사용률·GC pause 알림, 그리고 상한·TTL(만료 시간) 없는 컬렉션 캐시 금지 규칙**으로 정리했습니다.
 
@@ -105,11 +105,11 @@ k6로 30 VU를 걸되, 정상 조회 80%에 이 `/detail` 20%를 섞었습니다
 
 1·2편과 결이 다른 지점이 여기입니다. 이번 실습 전에 Grafana Alert를 걸어뒀습니다. 에러율 5% 초과가 1분 지속되면 경고, 15% 초과가 30초 지속되면 심각. 부하를 걸고 나서 **50초 만에 심각 알림이 Discord에 도착했습니다.** 경고는 80초에 뒤따라왔습니다. 지속 조건이 짧은 심각이 먼저 우는, 설계했던 순서 그대로입니다.
 
-![Discord에 도착한 심각 알림](/dev-blogV2/images/observability-lab/s4-incident-discord-firing-critical.png)
+![Discord에 도착한 심각 알림](/images/observability-lab/s4-incident-discord-firing-critical.png)
 
 대시보드의 에러율 패널은 시리즈 내내 0%에 붙어 있다가 처음으로 움직였습니다. **0%에서 20%대로.** k6 집계로는 14,484건 중 실패가 20.42%(2,958건)였고, 그중 2,847건이 500 응답이었습니다(나머지 111건은 서버에 연결조차 못 하고 끊긴 k6 쪽 타임아웃).
 
-![에러율 패널. 0%에서 20%대로 급증](/dev-blogV2/images/observability-lab/s4-incident-http-errorrate.png)
+![에러율 패널. 0%에서 20%대로 급증](/images/observability-lab/s4-incident-http-errorrate.png)
 
 흥미로운 건 나머지 지표입니다. 정상 API의 p95는 5.3ms로 평소 그대로였습니다. 시나리오 1(에러와 지연 동반), 시나리오 2(지연만), 시나리오 3(서서히 오르다 앱 다운)과 또 다른 조합, **전체는 멀쩡한데 특정 API만 전부 죽는** 신호입니다. 에러율은 평균으로 뭉개면 20%지만 `/detail` 입장에서는 100% 장애입니다.
 
@@ -117,7 +117,7 @@ k6로 30 VU를 걸되, 정상 조회 80%에 이 `/detail` 20%를 섞었습니다
 
 Loki에서 ERROR 레벨로 좁히자 스택트레이스가 쏟아졌습니다. `InventoryClient.fetchStock`에서 시작해 `ProductController.detail`로 이어지는, 범인이 그대로 적힌 트레이스입니다.
 
-![ERROR 스택트레이스가 쏟아지는 로그 패널](/dev-blogV2/images/observability-lab/s4-incident-logs.png)
+![ERROR 스택트레이스가 쏟아지는 로그 패널](/images/observability-lab/s4-incident-logs.png)
 
 여기서 이 편의 헛다리가 나왔습니다. 2편까지 하던 대로 스택트레이스에서 requestId를 집어 드릴다운하려고 봤더니 **ERROR 로그에 requestId 필드가 없었습니다.** 시리즈 내내 모든 로그에 심어온 값인데. 순간 MDC 필터가 고장 났나 싶어 필터 코드부터 다시 열었습니다.
 
@@ -144,9 +144,9 @@ try {
 
 같은 혼합 부하를 다시 걸었습니다. 외부 서비스는 여전히 죽어 있는데 **5xx는 170,941건 중 0건.** 알림은 부하 내내 Normal을 지켰고(안 우는 것이 복구의 증거입니다), 드릴다운은 요청·WARN·응답 3라인 매칭으로 돌아왔습니다. 예외를 필터 체인 안에서 잡으니 requestId 문제까지 같이 풀린 것입니다.
 
-![recovery의 에러율 패널. 다시 0% 평선](/dev-blogV2/images/observability-lab/s4-recovery-http-errorrate.png)
+![recovery의 에러율 패널. 다시 0% 평선](/images/observability-lab/s4-recovery-http-errorrate.png)
 
-![복구 후 드릴다운. 요청, WARN, 응답 3라인 매칭](/dev-blogV2/images/observability-lab/s4-recovery-logs-drilldown.png)
+![복구 후 드릴다운. 요청, WARN, 응답 3라인 매칭](/images/observability-lab/s4-recovery-logs-drilldown.png)
 
 예상 밖의 수확은 처리량이었습니다. **110 RPS에서 1,163 RPS로, 10배가 뛰었습니다.** 에러율 20%를 고쳤는데 처리량이 10배라니 산수가 안 맞는다 싶었는데, 가장 유력한 범인은 500 응답에 붙는 `Connection: close` 헤더였습니다. 에러 응답마다 커넥션이 끊겨 20%의 에러가 나머지 80%의 정상 요청까지 커넥션 재수립 비용으로 끌어내리고 있던 것으로 보였습니다. 실제로 장애 부하 중에는 k6에 연결 실패(dial 타임아웃)가 함께 찍혔고, 폴백으로 500이 사라지자 이 현상도 같이 사라졌습니다.
 

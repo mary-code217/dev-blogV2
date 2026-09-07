@@ -10,9 +10,9 @@ draft: false
 > **이 글의 한 줄**: 같은 자원 장애여도 신호는 정반대일 수 있습니다. 에러로 터지거나, 침묵 속에 느려지거나.
 >
 > "모니터링 장애 대응 실습" 4부작의 2편입니다.
-> [1편. 정상이 뭔지 모르면 장애도 못 본다](/dev-blogV2/blog/observability-lab-01-setup/) · **2편(현재 글)** · [3편. 앱이 죽어가는 신호](/dev-blogV2/blog/observability-lab-03-failure/) · 4편(예정)
+> [1편. 정상이 뭔지 모르면 장애도 못 본다](/blog/observability-lab-01-setup/) · **2편(현재 글)** · [3편. 앱이 죽어가는 신호](/blog/observability-lab-03-failure/) · 4편(예정)
 
-[1편](/dev-blogV2/blog/observability-lab-01-setup/)에서 baseline을 확보했습니다. 처리량 8.3 RPS, p95 41.7ms, 에러 0%. 이번 편에서는 그 위에 첫 장애 두 개를 일으킵니다. 커넥션 풀 고갈과 느린 쿼리. 계획할 때는 둘 다 "DB 자원 문제"로 한 묶음이라 신호도 비슷할 줄 알았습니다. 실제로는 **정반대**였습니다. 하나는 에러율 93%로 대시보드가 뒤집혔고, 하나는 에러가 단 한 건도 없이 조용히 11배 느려졌습니다.
+[1편](/blog/observability-lab-01-setup/)에서 baseline을 확보했습니다. 처리량 8.3 RPS, p95 41.7ms, 에러 0%. 이번 편에서는 그 위에 첫 장애 두 개를 일으킵니다. 커넥션 풀 고갈과 느린 쿼리. 계획할 때는 둘 다 "DB 자원 문제"로 한 묶음이라 신호도 비슷할 줄 알았습니다. 실제로는 **정반대**였습니다. 하나는 에러율 93%로 대시보드가 뒤집혔고, 하나는 에러가 단 한 건도 없이 조용히 11배 느려졌습니다.
 
 ## 장애 1. 커넥션 5개가 전부 점유된 채였다
 
@@ -36,13 +36,13 @@ public Product findByIdAndHold(Long id, long holdMillis) {
 
 부하를 걸고 대시보드를 보는데, 예상과 다른 게 두 가지였습니다.
 
-![active는 5에 붙박이, pending은 45까지 치솟은 커넥션 패널](/dev-blogV2/images/observability-lab/s1-incident-hikari-connections.png)
+![active는 5에 붙박이, pending은 45까지 치솟은 커넥션 패널](/images/observability-lab/s1-incident-hikari-connections.png)
 
 첫째, pending(커넥션 대기 스레드)이 "서서히 차오를" 줄 알았는데 **첫 scrape 5초 만에 0에서 45로 점프**했습니다. 50 VU가 동시에 들어오고 커넥션은 5개뿐이니 당연한 산수인데, 그래프로 보기 전엔 이 속도감을 몰랐습니다. 풀 고갈은 추세형이 아니라 급변형에 가깝게 나타났습니다.
 
 둘째, 에러율이 **93%까지** 치솟았습니다. 풀 5개가 동시에 처리하는 5건 말고는 전부 2초 타임아웃으로 떨어졌기 때문입니다. `timeout_total`은 분당 약 1,100건씩 증가했습니다.
 
-![에러율 93%를 찍은 패널](/dev-blogV2/images/observability-lab/s1-incident-http-errorrate.png)
+![에러율 93%를 찍은 패널](/images/observability-lab/s1-incident-http-errorrate.png)
 
 > 고백하자면 위 캡처에서 93%짜리 에러율이 **평화로운 초록색 선**으로 그려져 있습니다. 당시 패널에 threshold 색상을 안 넣어서입니다. 값은 장애인데 색은 정상. 이 어색함을 겪고 나서야 에러율 패널에 "5% 초과는 빨강" threshold를 넣었습니다. 대시보드는 값만 보여주면 되는 게 아니라 위험한 값을 색으로 구분해야 한다는 걸 배운 대목입니다.
 
@@ -55,7 +55,7 @@ java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not avail
 request timed out after 2010ms (total=5, active=5, idle=0, waiting=2)
 ```
 
-![타임아웃 스택트레이스가 걸린 Loki 로그 패널](/dev-blogV2/images/observability-lab/s1-incident-logs.png)
+![타임아웃 스택트레이스가 걸린 Loki 로그 패널](/images/observability-lab/s1-incident-logs.png)
 
 괄호 안이 원인 그 자체입니다. **total=5, active=5, idle=0**. 풀 전체가 점유된 채 놀고 있는 커넥션이 하나도 없습니다. 메트릭(pending 급증)이 "언제"를 알려줬고, 로그의 이 한 줄이 "왜"를 확정했습니다.
 
@@ -73,7 +73,7 @@ sleepOutsideTransaction(5000);   // 커넥션을 쥐지 않은 채 대기
 
 같은 50 VU를 다시 걸었습니다. **pending 0, 타임아웃 0, 에러율 0%** (824건 전부 성공). 풀 크기는 여전히 5인데 아무 문제가 없습니다.
 
-![해결 후 커넥션 패널. 같은 부하에서 pending 0](/dev-blogV2/images/observability-lab/s1-recovery-hikari-connections.png)
+![해결 후 커넥션 패널. 같은 부하에서 pending 0](/images/observability-lab/s1-recovery-hikari-connections.png)
 
 `maximum-pool-size`를 50으로 올리는 선택지도 있었지만 그건 증상 완화입니다. 커넥션 점유 시간이 문제의 본질인데 풀만 키우면 DB 쪽 부담을 늘린 채 같은 장애를 더 큰 규모로 유예할 뿐입니다. 재발 방지 규칙은 **"트랜잭션 안에서 외부 I/O 금지"와 pending 알림**으로 정리했습니다.
 
@@ -91,7 +91,7 @@ GET /api/products/search?name=product-0194756   (WHERE name = ? 풀스캔)
 
 장애 1을 겪은 직후라 에러율 패널부터 봤습니다. 정작 치솟은 건 레이턴시 패널이었습니다.
 
-![p95 450ms, p99 500ms까지 급등한 레이턴시 패널](/dev-blogV2/images/observability-lab/s2-incident-http-latency.png)
+![p95 450ms, p99 500ms까지 급등한 레이턴시 패널](/images/observability-lab/s2-incident-http-latency.png)
 
 | 지표 | baseline | incident |
 |------|----------|----------|
@@ -102,7 +102,7 @@ GET /api/products/search?name=product-0194756   (WHERE name = ? 풀스캔)
 
 모든 요청이 "성공"하고 있었습니다. 느리게. 이게 장애 1과의 결정적 차이입니다. **"느리지만 죽지 않는" 장애**는 에러율 패널만 보면 존재 자체를 모릅니다. 1편에서 baseline p95(41.7ms)를 박아두지 않았다면 450ms를 보고도 "원래 이런가?" 했을 것입니다.
 
-p95와 p99가 각각 무엇을 재는 값이고 이 숫자가 어떻게 만들어지는지는 [응답 시간 백분위](/dev-blogV2/wiki/latency-percentile-p50-p95-p99/)에 정리해뒀습니다.
+p95와 p99가 각각 무엇을 재는 값이고 이 숫자가 어떻게 만들어지는지는 [응답 시간 백분위](/wiki/latency-percentile-p50-p95-p99/)에 정리해뒀습니다.
 
 ### 느린 쿼리 로그 926건이 원인을 확정했다
 
@@ -130,7 +130,7 @@ EXPLAIN의 30.657ms는 단건 실행 계획을 확인한 값이고, 앞서 느�
 
 인덱스를 만들고 곧바로 같은 부하를 다시 걸었습니다. 그런데 p99가 **325ms**. 순간 "인덱스가 안 먹나?" 싶어 EXPLAIN을 다시 돌릴 뻔했습니다. 40초쯤 지나자 20ms대로 뚝 떨어졌습니다. **cold cache 워밍업, 또는 `rate(...[1m])`의 1분 집계 윈도우에 남아 있던 직전 느린 요청의 잔상**으로 보였습니다. 후자라면 실제 요청은 이미 빨라졌어도 분위수 계산이 직전 1분치 버킷을 계속 포함해 p99가 한동안 높게 유지됩니다. 어느 쪽이든 새 인덱스 직후의 과도기였고, 아래 캡처의 마지막 스파이크가 그 순간입니다.
 
-![incident 고원, 인덱스 후 복귀, 마지막의 cold cache 스파이크까지 한 시간축에](/dev-blogV2/images/observability-lab/s2-compare-http-latency.png)
+![incident 고원, 인덱스 후 복귀, 마지막의 cold cache 스파이크까지 한 시간축에](/images/observability-lab/s2-compare-http-latency.png)
 
 워밍업 후 최종 수치:
 
@@ -158,4 +158,4 @@ EXPLAIN의 30.657ms는 단건 실행 계획을 확인한 값이고, 앞서 느�
 
 다음 편은 더 고약한 놈입니다. 메모리 누수는 에러 한 줄 없이 힙만 우상향하다 앱째로 죽었고, 정작 죽는 순간의 로그는 **어디에도** 남지 않았습니다. 로그로 원인을 좁힌다는 이 시리즈의 공식이 처음으로 막히는 이야기입니다.
 
-다음 편: [모니터링 장애 대응 실습 3편 - 앱이 죽어가는 신호, 메모리 누수와 에러율 급증](/dev-blogV2/blog/observability-lab-03-failure/)
+다음 편: [모니터링 장애 대응 실습 3편 - 앱이 죽어가는 신호, 메모리 누수와 에러율 급증](/blog/observability-lab-03-failure/)

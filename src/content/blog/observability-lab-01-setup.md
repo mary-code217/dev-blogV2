@@ -7,7 +7,7 @@ tags: ["Observability", "Monitoring", "Grafana", "Prometheus"]
 ---
 
 > "모니터링 장애 대응 실습" 4부작의 1편입니다.
-> **1편(현재 글)** · [2편. 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/) · [3편. 앱이 죽어가는 신호](/dev-blogV2/blog/observability-lab-03-failure/) · 4편(예정)
+> **1편(현재 글)** · [2편. 자원이 마르면 생기는 일](/blog/observability-lab-02-resource/) · [3편. 앱이 죽어가는 신호](/blog/observability-lab-03-failure/) · 4편(예정)
 
 ## 장애 대응 경험은 기다린다고 오지 않는다
 
@@ -53,7 +53,7 @@ management.metrics.distribution.percentiles-histogram.http.server.requests: true
 histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[1m])))
 ```
 
-원본 응답시간을 정렬해 구한 값이 아니라 버킷 기반 추정치라는 것도 이때 알았습니다. 이 추정이 실제 값과 얼마나 어긋나는지는 [응답 시간 백분위](/dev-blogV2/wiki/latency-percentile-p50-p95-p99/)에 따로 정리했습니다. 참고로 `_max`는 슬라이딩 시간 창(기본 약 2분)의 최댓값일 뿐 p99가 아닙니다. 처음엔 이걸로 때우려다 그래프가 널뛰는 걸 보고 접었습니다.
+원본 응답시간을 정렬해 구한 값이 아니라 버킷 기반 추정치라는 것도 이때 알았습니다. 이 추정이 실제 값과 얼마나 어긋나는지는 [응답 시간 백분위](/wiki/latency-percentile-p50-p95-p99/)에 따로 정리했습니다. 참고로 `_max`는 슬라이딩 시간 창(기본 약 2분)의 최댓값일 뿐 p99가 아닙니다. 처음엔 이걸로 때우려다 그래프가 널뛰는 걸 보고 접었습니다.
 
 ### 2. 에러율 패널이 "No data"였다
 
@@ -75,7 +75,7 @@ Loki 공식 이미지엔 wget이 없어 compose healthcheck를 걸 수 없었고
 
 스택이 다 떠 있는 것과 "정상이 뭔지 아는 것"은 다른 문제입니다. 대시보드가 처음 완성됐을 때의 화면은 이랬습니다.
 
-![관측 스택 구성 직후의 통합 대시보드](/dev-blogV2/images/observability-lab/env-grafana-dashboard-baseline.png)
+![관측 스택 구성 직후의 통합 대시보드](/images/observability-lab/env-grafana-dashboard-baseline.png)
 
 여기에 k6로 **10 VU, 1분** 부하를 흘려서 "평소의 우리 서비스"를 숫자로 박아뒀습니다.
 
@@ -88,15 +88,15 @@ Loki 공식 이미지엔 wget이 없어 compose healthcheck를 걸 수 없었고
 
 이 수치는 로컬 Docker 환경에서 10 VU가 1분간 같은 API 믹스를 호출한 결과입니다. 절대 성능값이라기보다, 이후 장애 실험을 같은 조건에서 비교하기 위한 기준선입니다.
 
-![부하가 흐르는 동안의 baseline 대시보드](/dev-blogV2/images/observability-lab/baseline-load-overview.png)
+![부하가 흐르는 동안의 baseline 대시보드](/images/observability-lab/baseline-load-overview.png)
 
-![baseline p95/p99 레이턴시 실측](/dev-blogV2/images/observability-lab/baseline-load-http-latency.png)
+![baseline p95/p99 레이턴시 실측](/images/observability-lab/baseline-load-http-latency.png)
 
 이 표가 이후 시리즈 전체의 **비교 기준**이 됩니다. 2편에서 p95가 450ms를 찍었을 때 "11배 급등"이라고 말할 수 있는 근거가 이 41.7ms이고, 에러율 패널의 0% 평선이 있어야 93% 수직 상승이 "이상"으로 보입니다. baseline 없이 incident 그래프만 보면 그게 원래 그런 서비스인지 장애인지 알 수 없습니다.
 
 로그 축도 끝까지 검증했습니다. 요청 하나를 보내면 응답 헤더로 `X-Request-Id`가 돌아오고, 그 값을 Grafana 대시보드의 requestId 변수에 넣으면 해당 요청의 요청과 응답 로그 2라인이 정확히 걸립니다.
 
-![requestId로 특정 요청의 로그 2라인을 드릴다운](/dev-blogV2/images/observability-lab/env-loki-requestid-drilldown.png)
+![requestId로 특정 요청의 로그 2라인을 드릴다운](/images/observability-lab/env-loki-requestid-drilldown.png)
 
 메트릭에서 "언제"를 찾고 로그에서 "왜"를 좁히는 이 동선은 이후 네 번의 장애에서 계속 쓰입니다. 그리고 한 번은 이 동선이 **완전히 막히는 장애**도 만납니다(3편).
 
@@ -104,4 +104,4 @@ Loki 공식 이미지엔 wget이 없어 compose healthcheck를 걸 수 없었고
 
 다음 편에서는 DB 커넥션 풀을 고갈시키고, 100만 행 풀스캔으로 응답을 지연시킵니다. 같은 "자원" 장애인데 하나는 **에러율 93%까지** 치솟았고, 하나는 **에러 0건인 채 조용히 11배** 느려졌습니다. 에러율 패널만 보고 있었다면 두 번째 장애는 놓쳤을 것입니다.
 
-다음 편: [모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일](/dev-blogV2/blog/observability-lab-02-resource/)
+다음 편: [모니터링 장애 대응 실습 2편 - 자원이 마르면 생기는 일](/blog/observability-lab-02-resource/)
