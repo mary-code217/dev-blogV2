@@ -55,9 +55,13 @@ const base = import.meta.env.BASE_URL;
 
 <style>
 	.notfound {
+		/* .content__inner가 flex 컬럼이고 푸터가 margin-top:auto로 바닥에 붙으므로,
+		   남는 세로 공간을 이 블록이 차지하게 두면 가운데 정렬이 된다 */
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+		justify-content: center;
 		text-align: center;
 		padding: var(--space-xl) 0;
 	}
