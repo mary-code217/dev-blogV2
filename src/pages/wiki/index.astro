@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 import Search from '../../components/Search.astro';
+import EmptyState from '../../components/EmptyState.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../../consts';
 
 const posts = (await getCollection('wiki', ({ data }) => (import.meta.env.PROD ? !data.draft : true)))
@@ -10,6 +11,7 @@ const posts = (await getCollection('wiki', ({ data }) => (import.meta.env.PROD ?
 
 const categories = [...new Set(posts.map((p) => p.data.category))].sort();
 const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
+const base = import.meta.env.BASE_URL;
 ---
 
 <BaseLayout title={`Wiki - ${SITE_TITLE}`} description={SITE_DESCRIPTION} activeNav="wiki">
@@ -57,9 +59,10 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 		</div>
 
 		<!-- 빈 상태 -->
-		<p class="empty-state" id="empty-state" hidden>
-			조건에 맞는 글이 없습니다.
-		</p>
+		<EmptyState
+			description="위키 글은 준비 중입니다. 그동안 다른 곳을 둘러보세요."
+			links={[{ label: '블로그', href: `${base}blog/` }, { label: 'AI', href: `${base}ai/` }, { label: 'Dict', href: `${base}dict/` }]}
+		/>
 
 		<!-- 더보기 버튼 -->
 		<div class="load-more-wrap" id="load-more-wrap">
@@ -69,7 +72,13 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 </BaseLayout>
 
 <style>
-	.page-title {
+	.blog-list {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+	}
+
+
 		font-size: 2rem;
 		font-weight: 700;
 		margin: 0 0 var(--space-lg) 0;
@@ -139,12 +148,6 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 		display: none;
 	}
 
-	.empty-state {
-		color: var(--muted);
-		padding: var(--space-xl) 0;
-		text-align: center;
-	}
-
 	.load-more-wrap {
 		margin-top: var(--space-lg);
 		text-align: center;
@@ -206,7 +209,10 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 				item.hidden = i >= visibleCount;
 			});
 
-			if (emptyState) emptyState.hidden = filtered.length > 0;
+			if (emptyState) {
+				emptyState.hidden = filtered.length > 0;
+				emptyState.dataset.state = items.length === 0 ? 'none' : 'filtered';
+			}
 			if (loadMoreWrap) loadMoreWrap.hidden = filtered.length <= visibleCount;
 		}
 
@@ -238,6 +244,15 @@ const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 
 		loadMoreBtn?.addEventListener('click', () => {
 			visibleCount += PAGE_SIZE;
+			render();
+		});
+
+		document.getElementById('empty-reset')?.addEventListener('click', () => {
+			activeCategory = 'all';
+			activeTag = null;
+			visibleCount = PAGE_SIZE;
+			categoryBtns.forEach((b) => b.classList.toggle('active', b.dataset.category === 'all'));
+			tagBtns.forEach((b) => b.classList.remove('active'));
 			render();
 		});
 
