@@ -1,0 +1,242 @@
+<sidebar-garden class="garden" data-growth="0" data-pagefind-ignore>
+	<button class="garden__water" type="button" aria-label="작은 정원에 물 주기, 0/3" disabled>
+		<span class="garden__scene" aria-hidden="true">
+			<span class="garden__shadow"></span>
+			<span class="garden__plant">
+				<span class="garden__stem"></span>
+				<span class="garden__leaf"></span>
+				<span class="garden__leaf garden__leaf--right"></span>
+				<span class="garden__leaf garden__leaf--upper"></span>
+				<span class="garden__flower">
+					{Array.from({ length: 5 }, (_, index) => (
+						<span class="garden__petal" style={`--petal-angle: ${index * 72}deg`}></span>
+					))}
+					<span class="garden__flower-center"></span>
+				</span>
+			</span>
+			<span class="garden__pot"></span>
+			<span class="garden__rim"></span>
+			<span class="garden__shine"></span>
+			<span class="garden__rain">
+				<span></span><span></span><span></span>
+			</span>
+		</span>
+		<span class="garden__action">물 주기 · 0/3</span>
+	</button>
+	<div class="garden__footer">
+		<p class="garden__caption">작은 기록이 자라는 중</p>
+		<button class="garden__motion" type="button" aria-label="정원 움직임 멈춤" aria-pressed="false" hidden>
+			<svg class="garden__pause-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+				<path d="M5 3v10M11 3v10" />
+			</svg>
+			<svg class="garden__play-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+				<path d="m5 3 8 5-8 5Z" />
+			</svg>
+		</button>
+	</div>
+	<p class="sr-only" aria-live="polite" aria-atomic="true" data-garden-status></p>
+</sidebar-garden>
+
+<script>
+	const growthKey = 'marydev:garden-growth:v1';
+
+	function readGrowth(value: string | null): number {
+		return value !== null && /^[0-3]$/.test(value) ? Number(value) : 0;
+	}
+
+	class SidebarGarden extends HTMLElement {
+		private growth = 0;
+		private paused = false;
+		private controller?: AbortController;
+		private wateringTimer?: ReturnType<typeof setTimeout>;
+
+		connectedCallback() {
+			this.controller?.abort();
+			this.controller = new AbortController();
+			const { signal } = this.controller;
+			const water = this.querySelector<HTMLButtonElement>('.garden__water');
+			const action = this.querySelector<HTMLElement>('.garden__action');
+			const motion = this.querySelector<HTMLButtonElement>('.garden__motion');
+			const status = this.querySelector<HTMLElement>('[data-garden-status]');
+			if (!water || !action || !motion || !status) return;
+
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+			try {
+				this.growth = readGrowth(localStorage.getItem(growthKey));
+			} catch {
+				// Storage can be unavailable; the garden still works for this visit.
+			}
+
+			const renderGrowth = () => {
+				this.dataset.growth = String(this.growth);
+				action.textContent = this.growth === 3 ? '새싹 다시 키우기' : `물 주기 · ${this.growth}/3`;
+				water.setAttribute('aria-label', this.growth === 3
+					? '꽃이 핀 정원에서 새싹 다시 키우기'
+					: `작은 정원에 물 주기, ${this.growth}/3`);
+			};
+
+			const stopWatering = () => {
+				clearTimeout(this.wateringTimer);
+				this.classList.remove('is-watering');
+			};
+
+			const renderMotion = () => {
+				this.dataset.paused = String(this.paused || reducedMotion.matches);
+				motion.hidden = reducedMotion.matches;
+				motion.setAttribute('aria-pressed', String(this.paused));
+				motion.setAttribute('aria-label', this.paused ? '정원 움직임 재생' : '정원 움직임 멈춤');
+				if (this.paused || reducedMotion.matches) stopWatering();
+			};
+
+			water.addEventListener('click', () => {
+				this.growth = (this.growth + 1) % 4;
+				try {
+					localStorage.setItem(growthKey, String(this.growth));
+				} catch {
+					// Keep the current in-memory state if saving is blocked.
+				}
+				renderGrowth();
+				status.textContent = [
+					'새로운 새싹을 심었어요.',
+					'물을 한 번 주었어요. 새싹이 조금 자랐어요.',
+					'물을 두 번 주었어요. 새 잎이 났어요.',
+					'물을 세 번 주었어요. 작은 기록이 꽃이 되었어요.',
+				][this.growth];
+				stopWatering();
+				if (this.growth > 0 && !this.paused && !reducedMotion.matches) {
+					// Restart the short rain effect even when clicks happen quickly.
+					void this.offsetWidth;
+					this.classList.add('is-watering');
+					this.wateringTimer = setTimeout(stopWatering, 1250);
+				}
+			}, { signal });
+
+			motion.addEventListener('click', () => {
+				this.paused = !this.paused;
+				renderMotion();
+			}, { signal });
+			reducedMotion.addEventListener('change', renderMotion, { signal });
+			window.addEventListener('storage', (event) => {
+				if (event.key !== growthKey && event.key !== null) return;
+				this.growth = readGrowth(event.newValue);
+				stopWatering();
+				renderGrowth();
+			}, { signal });
+
+			renderGrowth();
+			renderMotion();
+			water.disabled = false;
+		}
+
+		disconnectedCallback() {
+			this.controller?.abort();
+			clearTimeout(this.wateringTimer);
+			this.classList.remove('is-watering');
+		}
+	}
+
+	if (!customElements.get('sidebar-garden')) {
+		customElements.define('sidebar-garden', SidebarGarden);
+	}
+</script>
+
+<style>
+	.garden {
+		--garden-leaf: #769369;
+		--garden-stem: #4f7050;
+		--garden-pot: #bd7d60;
+		--garden-water: #6c8ca5;
+		--garden-flower: color-mix(in srgb, var(--accent) 65%, var(--bg));
+		display: block;
+		width: 160px;
+		max-width: 100%;
+		text-align: center;
+	}
+
+	:global(:root[data-theme='dark']) .garden {
+		--garden-leaf: #a2ba8d;
+		--garden-stem: #789765;
+		--garden-pot: #b9856a;
+		--garden-water: #91b2ca;
+	}
+
+	.garden__water {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.garden__water:disabled { cursor: default; }
+	.garden__water:hover .garden__action { color: var(--accent); }
+	.garden__water:focus-visible,
+	.garden__motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+	.garden__scene { display: block; position: relative; width: 160px; height: 132px; }
+	.garden__shadow { position: absolute; bottom: 14px; left: 16px; width: 128px; height: 8px; background: var(--panel); border-radius: 50%; }
+	.garden__plant { position: absolute; left: 78px; bottom: 48px; width: 4px; height: 68px; transform-origin: center bottom; animation: garden-sway 6s ease-in-out infinite; }
+	.garden__stem { position: absolute; left: 0; bottom: 0; width: 3px; height: 31px; border-radius: 3px; background: var(--garden-stem); transition: height 0.7s ease; }
+	.garden__leaf { position: absolute; bottom: 15px; left: -23px; width: 24px; height: 14px; background: var(--garden-leaf); border-radius: 2px 100% 2px 100%; transform-origin: 100% 100%; transform: rotate(12deg); transition: bottom 0.7s ease, opacity 0.7s ease; }
+	.garden__leaf--right { left: 3px; bottom: 24px; border-radius: 100% 2px 100% 2px; transform-origin: 0 100%; transform: rotate(-10deg); }
+	.garden__leaf--upper { bottom: 43px; transform: scale(0.7) rotate(12deg); opacity: 0; }
+	.garden__flower { position: absolute; bottom: 54px; left: -9px; width: 22px; height: 22px; transform: scale(0); transition: transform 0.6s ease; }
+	.garden__petal { position: absolute; width: 10px; height: 14px; border-radius: 60%; background: var(--garden-flower); left: 6px; top: -2px; transform-origin: 5px 13px; transform: rotate(var(--petal-angle)); }
+	.garden__flower-center { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); left: 8px; top: 8px; }
+	.garden__pot { position: absolute; left: 58px; bottom: 15px; width: 44px; height: 35px; background: var(--garden-pot); clip-path: polygon(0 0, 100% 0, 87% 100%, 13% 100%); border-radius: 0 0 11px 11px; }
+	.garden__rim { position: absolute; left: 55px; bottom: 41px; width: 50px; height: 8px; border-radius: 3px; background: var(--garden-pot); }
+	.garden__shine { position: absolute; left: 64px; bottom: 20px; width: 3px; height: 17px; border-radius: 2px; background: var(--bg); opacity: 0.18; }
+	.garden__rain span { position: absolute; width: 4px; height: 7px; background: var(--garden-water); border-radius: 60% 60% 65% 65%; top: 17px; left: 47px; opacity: 0; }
+	.garden__rain span:nth-child(2) { left: 103px; top: 25px; animation-delay: 0.15s; }
+	.garden__rain span:nth-child(3) { left: 62px; top: 2px; animation-delay: 0.3s; }
+	.is-watering .garden__rain span { animation-name: garden-water; animation-duration: 0.9s; animation-timing-function: ease-in; animation-fill-mode: both; }
+	.garden[data-growth='1'] .garden__stem { height: 44px; }
+	.garden[data-growth='2'] .garden__stem,
+	.garden[data-growth='3'] .garden__stem { height: 66px; }
+	.garden:not([data-growth='0']) .garden__leaf--right { bottom: 34px; }
+	.garden[data-growth='2'] .garden__leaf--upper,
+	.garden[data-growth='3'] .garden__leaf--upper { opacity: 1; }
+	.garden[data-growth='3'] .garden__flower { transform: scale(1); }
+	.garden__action { display: block; font-size: 11px; line-height: 1.5; transition: color 0.2s ease; }
+	.garden__footer { display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 4px; }
+	.garden__caption { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+	.garden__motion { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+	.garden__motion:hover { background: var(--panel); color: var(--accent); }
+	.garden__motion[hidden],
+	.garden__play-icon { display: none; }
+	.garden[data-paused='true'] .garden__plant { animation-play-state: paused; }
+	.garden[data-paused='true'] .garden__stem,
+	.garden[data-paused='true'] .garden__leaf,
+	.garden[data-paused='true'] .garden__flower { transition: none; }
+	.garden[data-paused='true'] .garden__pause-icon { display: none; }
+	.garden[data-paused='true'] .garden__play-icon { display: block; }
+
+	@keyframes garden-sway {
+		0%, 100% { transform: rotate(-2deg); }
+		50% { transform: rotate(2deg); }
+	}
+
+	@keyframes garden-water {
+		0% { opacity: 0; transform: translateY(0); }
+		20% { opacity: 0.7; }
+		100% { opacity: 0; transform: translateY(66px); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.garden__plant, .garden__rain span { animation: none; }
+		.garden__stem, .garden__leaf, .garden__flower { transition: none; }
+	}
+
+	@media (pointer: coarse) {
+		.garden__motion { width: var(--tap-min-h); height: var(--tap-min-h); }
+		.garden__footer { flex-wrap: wrap; }
+	}
+
+	@media (max-width: 899px), (max-height: 680px) {
+		.garden { display: none; }
+	}
+</style>

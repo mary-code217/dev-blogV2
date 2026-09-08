@@ -1,5 +1,6 @@
 ---
 import ThemeToggle from './ThemeToggle.astro';
+import SidebarGarden from './SidebarGarden.astro';
 import { SITE_TITLE } from '../consts';
 
 interface Props {
@@ -40,8 +41,11 @@ const nav = [
 		</ul>
 	</nav>
 
-	<div class="sidebar-actions">
-		<ThemeToggle />
+	<div class="sidebar-bottom">
+		<SidebarGarden />
+		<div class="sidebar-actions">
+			<ThemeToggle />
+		</div>
 	</div>
 </aside>
 
@@ -128,8 +132,16 @@ const nav = [
 		flex-shrink: 0;
 	}
 
-	.sidebar-actions {
+	.sidebar-bottom {
 		margin-top: auto;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 18px;
+		flex-shrink: 0;
+	}
+
+	.sidebar-actions {
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -175,7 +187,7 @@ const nav = [
 			display: none;
 		}
 
-		.sidebar-actions {
+		.sidebar-bottom {
 			order: 2;
 			margin-top: 0;
 			margin-left: auto;
