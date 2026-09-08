@@ -1,0 +1,187 @@
+<sidebar-coffee class="coffee" data-pagefind-ignore>
+	<button class="coffee__sip" type="button" aria-label="커피 한 모금 마시기" disabled>
+		<span class="coffee__scene" aria-hidden="true">
+			<span class="coffee__saucer"></span>
+			<span class="coffee__steam"></span>
+			<span class="coffee__steam coffee__steam--two"></span>
+			<span class="coffee__steam coffee__steam--three"></span>
+			<span class="coffee__mug">
+				<span class="coffee__handle"></span>
+				<span class="coffee__body"></span>
+				<span class="coffee__top"></span>
+				<span class="coffee__mark">m.</span>
+			</span>
+		</span>
+		<span class="coffee__action">잠깐, 커피 한 모금?</span>
+	</button>
+	<div class="coffee__footer">
+		<p class="coffee__caption">쉬어가는 자리</p>
+		<button class="coffee__motion" type="button" aria-label="김 피어오름 멈춤" aria-pressed="false" hidden>
+			<svg class="coffee__pause-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+				<path d="M5 3v10M11 3v10" />
+			</svg>
+			<svg class="coffee__play-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+				<path d="m5 3 8 5-8 5Z" />
+			</svg>
+		</button>
+	</div>
+	<p class="sr-only" aria-live="polite" aria-atomic="true" data-coffee-status></p>
+</sidebar-coffee>
+
+<script>
+	const sipLines = [
+		'좋아, 조금 쉬었다 가자.',
+		'오늘도 수고했어.',
+		'다음 한 줄은 조금 뒤에.',
+		'충전 완료. 다시 천천히.',
+	];
+
+	class SidebarCoffee extends HTMLElement {
+		private paused = false;
+		private index = 0;
+		private controller?: AbortController;
+		private sipTimer?: ReturnType<typeof setTimeout>;
+
+		connectedCallback() {
+			this.controller?.abort();
+			this.controller = new AbortController();
+			const { signal } = this.controller;
+			const sip = this.querySelector<HTMLButtonElement>('.coffee__sip');
+			const action = this.querySelector<HTMLElement>('.coffee__action');
+			const motion = this.querySelector<HTMLButtonElement>('.coffee__motion');
+			const status = this.querySelector<HTMLElement>('[data-coffee-status]');
+			if (!sip || !action || !motion || !status) return;
+
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+			const stopSipping = () => {
+				clearTimeout(this.sipTimer);
+				this.classList.remove('is-sipping');
+			};
+
+			const renderMotion = () => {
+				this.dataset.paused = String(this.paused || reducedMotion.matches);
+				motion.hidden = reducedMotion.matches;
+				motion.setAttribute('aria-pressed', String(this.paused));
+				motion.setAttribute('aria-label', this.paused ? '김 피어오름 재생' : '김 피어오름 멈춤');
+				if (this.paused || reducedMotion.matches) stopSipping();
+			};
+
+			sip.addEventListener('click', () => {
+				const line = sipLines[this.index++ % sipLines.length];
+				action.textContent = line;
+				status.textContent = line;
+				stopSipping();
+				if (!this.paused && !reducedMotion.matches) {
+					// 잔이 기울었다가 제자리로 돌아온다
+					void this.offsetWidth;
+					this.classList.add('is-sipping');
+					this.sipTimer = setTimeout(stopSipping, 1400);
+				}
+			}, { signal });
+
+			motion.addEventListener('click', () => {
+				this.paused = !this.paused;
+				renderMotion();
+			}, { signal });
+			reducedMotion.addEventListener('change', renderMotion, { signal });
+
+			renderMotion();
+			sip.disabled = false;
+		}
+
+		disconnectedCallback() {
+			this.controller?.abort();
+			clearTimeout(this.sipTimer);
+			this.classList.remove('is-sipping');
+		}
+	}
+
+	if (!customElements.get('sidebar-coffee')) {
+		customElements.define('sidebar-coffee', SidebarCoffee);
+	}
+</script>
+
+<style>
+	.coffee {
+		--coffee-cup: #ded3c4;
+		--coffee-brew: #76513b;
+		display: block;
+		width: 160px;
+		max-width: 100%;
+		text-align: center;
+	}
+
+	:global(:root[data-theme='dark']) .coffee {
+		--coffee-cup: #bdb3a0;
+		--coffee-brew: #986c4b;
+	}
+
+	.coffee__sip {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.coffee__sip:disabled { cursor: default; }
+	.coffee__sip:hover .coffee__action { color: var(--accent); }
+	.coffee__sip:focus-visible,
+	.coffee__motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+	.coffee__scene { display: block; position: relative; width: 160px; height: 132px; }
+	.coffee__saucer { position: absolute; bottom: 17px; left: 32px; width: 98px; height: 11px; border-radius: 50%; background: var(--panel); }
+
+	.coffee__mug { position: absolute; bottom: 25px; left: 47px; width: 68px; height: 50px; transform-origin: center bottom; transition: transform 0.55s ease; }
+	.coffee__handle { position: absolute; right: -14px; top: 9px; width: 28px; height: 29px; border: 6px solid var(--coffee-cup); border-radius: 45%; }
+	.coffee__body { position: absolute; inset: 0; background: var(--coffee-cup); border-radius: 5px 5px 23px 23px; z-index: 1; }
+	.coffee__top { position: absolute; left: 0; top: -4px; width: 68px; height: 13px; border: 4px solid var(--coffee-cup); background: var(--coffee-brew); border-radius: 50%; z-index: 2; }
+	.coffee__mark { position: absolute; left: 0; right: 0; top: 12px; text-align: center; font-size: 16px; font-family: Georgia, serif; color: var(--coffee-brew); opacity: 0.8; z-index: 2; }
+
+	/* 김이 느리게 피어올랐다 사라진다 */
+	.coffee__steam { position: absolute; left: 57px; top: 17px; width: 10px; height: 33px; border-left: 2px solid var(--muted); border-radius: 50%; opacity: 0.25; animation: coffee-steam 4s ease-in-out infinite; }
+	.coffee__steam--two { left: 78px; top: 9px; height: 37px; animation-delay: 1.2s; }
+	.coffee__steam--three { left: 98px; top: 19px; height: 26px; animation-delay: 2.3s; }
+
+	.coffee.is-sipping .coffee__mug { transform: translateY(-12px) rotate(-9deg); }
+	.coffee.is-sipping .coffee__steam { visibility: hidden; }
+
+	.coffee__action { display: block; font-size: 11px; line-height: 1.5; transition: color 0.2s ease; word-break: keep-all; }
+	.coffee__footer { display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 4px; }
+	.coffee__caption { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+	.coffee__motion { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+	.coffee__motion:hover { background: var(--panel); color: var(--accent); }
+	.coffee__motion[hidden],
+	.coffee__play-icon { display: none; }
+
+	.coffee[data-paused='true'] .coffee__steam { animation-play-state: paused; }
+	.coffee[data-paused='true'] .coffee__mug { transition: none; }
+	.coffee[data-paused='true'] .coffee__pause-icon { display: none; }
+	.coffee[data-paused='true'] .coffee__play-icon { display: block; }
+
+	@keyframes coffee-steam {
+		0% { opacity: 0; transform: translateY(7px) skewX(-9deg); }
+		35% { opacity: 0.3; }
+		100% { opacity: 0; transform: translateY(-12px) skewX(10deg); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.coffee__steam { animation: none; }
+		.coffee__mug { transition: none; }
+	}
+
+	@media (pointer: coarse) {
+		.coffee__motion { width: var(--tap-min-h); height: var(--tap-min-h); }
+		.coffee__footer { flex-wrap: wrap; }
+	}
+
+	@media (max-width: 899px), (max-height: 680px) {
+		.coffee { display: none; }
+	}
+</style>

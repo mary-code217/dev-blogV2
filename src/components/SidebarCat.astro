@@ -1,0 +1,196 @@
+<sidebar-cat class="cat" data-pagefind-ignore>
+	<button class="cat__pet" type="button" aria-label="고양이 쓰다듬기" disabled>
+		<span class="cat__scene" aria-hidden="true">
+			<span class="cat__mat"></span>
+			<span class="cat__figure">
+				<span class="cat__body"></span>
+				<span class="cat__tail"></span>
+				<span class="cat__head">
+					<span class="cat__ear"></span>
+					<span class="cat__ear cat__ear--right"></span>
+					<span class="cat__eye"></span>
+					<span class="cat__eye cat__eye--right"></span>
+					<span class="cat__nose"></span>
+				</span>
+				<span class="cat__paw"></span>
+			</span>
+			<span class="cat__dream">z</span>
+			<span class="cat__dream cat__dream--second">z</span>
+			<span class="cat__purr">고르릉…</span>
+		</span>
+		<span class="cat__action">쓰다듬어 줄래?</span>
+	</button>
+	<div class="cat__footer">
+		<p class="cat__caption">조용히 머무는 중</p>
+		<button class="cat__motion" type="button" aria-label="고양이 움직임 멈춤" aria-pressed="false" hidden>
+			<svg class="cat__pause-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+				<path d="M5 3v10M11 3v10" />
+			</svg>
+			<svg class="cat__play-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+				<path d="m5 3 8 5-8 5Z" />
+			</svg>
+		</button>
+	</div>
+	<p class="sr-only" aria-live="polite" aria-atomic="true" data-cat-status></p>
+</sidebar-cat>
+
+<script>
+	class SidebarCat extends HTMLElement {
+		private paused = false;
+		private controller?: AbortController;
+		private restTimer?: ReturnType<typeof setTimeout>;
+
+		connectedCallback() {
+			this.controller?.abort();
+			this.controller = new AbortController();
+			const { signal } = this.controller;
+			const pet = this.querySelector<HTMLButtonElement>('.cat__pet');
+			const action = this.querySelector<HTMLElement>('.cat__action');
+			const motion = this.querySelector<HTMLButtonElement>('.cat__motion');
+			const status = this.querySelector<HTMLElement>('[data-cat-status]');
+			if (!pet || !action || !motion || !status) return;
+
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+			const rest = () => {
+				this.classList.remove('is-awake');
+				action.textContent = '쓰다듬어 줄래?';
+			};
+
+			const renderMotion = () => {
+				this.dataset.paused = String(this.paused || reducedMotion.matches);
+				motion.hidden = reducedMotion.matches;
+				motion.setAttribute('aria-pressed', String(this.paused));
+				motion.setAttribute('aria-label', this.paused ? '고양이 움직임 재생' : '고양이 움직임 멈춤');
+			};
+
+			pet.addEventListener('click', () => {
+				clearTimeout(this.restTimer);
+				this.classList.add('is-awake');
+				action.textContent = '좋아, 조금만 더 쉬자.';
+				status.textContent = '고양이를 쓰다듬었어요. 고르릉거려요.';
+				// 잠깐 반응한 뒤 다시 졸음으로 돌아간다
+				this.restTimer = setTimeout(rest, 2500);
+			}, { signal });
+
+			motion.addEventListener('click', () => {
+				this.paused = !this.paused;
+				renderMotion();
+			}, { signal });
+			reducedMotion.addEventListener('change', renderMotion, { signal });
+
+			renderMotion();
+			pet.disabled = false;
+		}
+
+		disconnectedCallback() {
+			this.controller?.abort();
+			clearTimeout(this.restTimer);
+			this.classList.remove('is-awake');
+		}
+	}
+
+	if (!customElements.get('sidebar-cat')) {
+		customElements.define('sidebar-cat', SidebarCat);
+	}
+</script>
+
+<style>
+	.cat {
+		--cat-fur: #dbc2a2;
+		--cat-shade: #b59471;
+		display: block;
+		width: 160px;
+		max-width: 100%;
+		text-align: center;
+	}
+
+	:global(:root[data-theme='dark']) .cat {
+		--cat-fur: #b6a085;
+		--cat-shade: #87745e;
+	}
+
+	.cat__pet {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.cat__pet:disabled { cursor: default; }
+	.cat__pet:hover .cat__action { color: var(--accent); }
+	.cat__pet:focus-visible,
+	.cat__motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+	.cat__scene { display: block; position: relative; width: 160px; height: 132px; }
+	.cat__mat { position: absolute; bottom: 14px; left: 16px; width: 132px; height: 8px; background: var(--panel); border-radius: 50%; }
+
+	/* 숨 쉬듯 아주 느리게 오르내린다 */
+	.cat__figure { position: absolute; width: 112px; height: 62px; bottom: 19px; left: 26px; transform-origin: center bottom; animation: cat-breathe 4.8s ease-in-out infinite; }
+	.cat__body { position: absolute; right: 7px; bottom: 0; width: 79px; height: 43px; border-radius: 46px 46px 16px 15px; background: var(--cat-fur); }
+	.cat__tail { position: absolute; right: 0; bottom: 0; width: 48px; height: 23px; border: 8px solid var(--cat-shade); border-top-color: transparent; border-left-color: transparent; border-radius: 50%; transform: rotate(-7deg); }
+	.cat__head { position: absolute; left: 0; bottom: 0; width: 48px; height: 35px; border-radius: 40% 42% 42% 45%; background: var(--cat-fur); transform: rotate(-8deg); transition: transform 0.3s ease; }
+	.cat__ear { position: absolute; top: -11px; left: 1px; width: 17px; height: 21px; background: var(--cat-fur); clip-path: polygon(8% 0, 100% 80%, 0 100%); }
+	.cat__ear--right { left: auto; right: 0; transform: scaleX(-1); }
+	.cat__eye { position: absolute; top: 17px; left: 9px; width: 8px; height: 5px; border-bottom: 2px solid var(--text); border-radius: 50%; }
+	.cat__eye--right { left: auto; right: 9px; }
+	.cat__nose { position: absolute; left: 23px; top: 24px; width: 3px; height: 3px; border-radius: 50%; background: var(--cat-shade); }
+	.cat__paw { position: absolute; bottom: 0; left: 25px; width: 25px; height: 8px; background: var(--cat-shade); border-radius: 8px; }
+
+	.cat__dream { position: absolute; right: 22px; top: 25px; font-size: 13px; font-family: var(--font-mono); color: var(--muted); animation: cat-dream 4s ease-out infinite; }
+	.cat__dream--second { right: 9px; top: 11px; font-size: 11px; animation-delay: 1.3s; }
+	.cat__purr { position: absolute; left: 24px; top: 19px; font-size: 12px; color: var(--accent); opacity: 0; transition: opacity 0.2s ease; }
+
+	/* 깨어 있는 동안에는 고개를 들고 눈을 뜬다 */
+	.cat__pet:hover .cat__head,
+	.cat__pet:focus-visible .cat__head,
+	.cat.is-awake .cat__head { transform: translateY(-6px) rotate(0deg); }
+	.cat__pet:hover .cat__eye { height: 6px; width: 4px; background: var(--text); border: 0; }
+	.cat.is-awake .cat__purr { opacity: 1; }
+	.cat.is-awake .cat__dream { visibility: hidden; }
+
+	.cat__action { display: block; font-size: 11px; line-height: 1.5; transition: color 0.2s ease; word-break: keep-all; }
+	.cat__footer { display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 4px; }
+	.cat__caption { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+	.cat__motion { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+	.cat__motion:hover { background: var(--panel); color: var(--accent); }
+	.cat__motion[hidden],
+	.cat__play-icon { display: none; }
+
+	.cat[data-paused='true'] .cat__figure,
+	.cat[data-paused='true'] .cat__dream { animation-play-state: paused; }
+	.cat[data-paused='true'] .cat__head { transition: none; }
+	.cat[data-paused='true'] .cat__pause-icon { display: none; }
+	.cat[data-paused='true'] .cat__play-icon { display: block; }
+
+	@keyframes cat-breathe {
+		0%, 100% { transform: scaleY(1); }
+		50% { transform: scaleY(1.045); }
+	}
+
+	@keyframes cat-dream {
+		0% { opacity: 0; transform: translateY(5px); }
+		35% { opacity: 0.7; }
+		100% { opacity: 0; transform: translateY(-11px); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.cat__figure, .cat__dream { animation: none; }
+		.cat__head { transition: none; }
+	}
+
+	@media (pointer: coarse) {
+		.cat__motion { width: var(--tap-min-h); height: var(--tap-min-h); }
+		.cat__footer { flex-wrap: wrap; }
+	}
+
+	@media (max-width: 899px), (max-height: 680px) {
+		.cat { display: none; }
+	}
+</style>

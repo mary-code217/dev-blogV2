@@ -1,0 +1,197 @@
+<sidebar-terminal class="term" data-pagefind-ignore>
+	<div class="term__scene">
+		<div class="term__top">
+			<span class="term__dot" aria-hidden="true"></span>
+			<span>mary@dev ~</span>
+		</div>
+		<div class="term__command">$ cat today.txt</div>
+		<div class="term__output">
+			<span class="term__typed">천천히, 꾸준히.</span>
+			<span class="term__cursor" aria-hidden="true"></span>
+		</div>
+		<button class="term__next" type="button" disabled>다음 한 줄 ↵</button>
+	</div>
+	<div class="term__footer">
+		<p class="term__caption">오늘의 작은 기록</p>
+		<button class="term__motion" type="button" aria-label="커서 깜빡임 멈춤" aria-pressed="false" hidden>
+			<svg class="term__pause-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+				<path d="M5 3v10M11 3v10" />
+			</svg>
+			<svg class="term__play-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+				<path d="m5 3 8 5-8 5Z" />
+			</svg>
+		</button>
+	</div>
+	<p class="sr-only" aria-live="polite" aria-atomic="true" data-term-status></p>
+</sidebar-terminal>
+
+<script>
+	const lines = [
+		'천천히, 꾸준히.',
+		'오늘도 하나 배웠다.',
+		'일단 커피부터.',
+		'작은 기록이 쌓인다.',
+		'버그도 언젠간 추억.',
+	];
+
+	class SidebarTerminal extends HTMLElement {
+		private paused = false;
+		private index = 0;
+		private controller?: AbortController;
+		private typingTimer?: ReturnType<typeof setInterval>;
+
+		connectedCallback() {
+			this.controller?.abort();
+			this.controller = new AbortController();
+			const { signal } = this.controller;
+			const next = this.querySelector<HTMLButtonElement>('.term__next');
+			const typed = this.querySelector<HTMLElement>('.term__typed');
+			const motion = this.querySelector<HTMLButtonElement>('.term__motion');
+			const status = this.querySelector<HTMLElement>('[data-term-status]');
+			if (!next || !typed || !motion || !status) return;
+
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+			const stopTyping = (text?: string) => {
+				clearInterval(this.typingTimer);
+				if (text !== undefined) typed.textContent = text;
+			};
+
+			const renderMotion = () => {
+				this.dataset.paused = String(this.paused || reducedMotion.matches);
+				motion.hidden = reducedMotion.matches;
+				motion.setAttribute('aria-pressed', String(this.paused));
+				motion.setAttribute('aria-label', this.paused ? '커서 깜빡임 재생' : '커서 깜빡임 멈춤');
+				// 멈춘 상태에서는 쓰다 만 줄을 그대로 두지 않고 끝까지 채운다
+				if (this.paused || reducedMotion.matches) stopTyping(lines[this.index]);
+			};
+
+			next.addEventListener('click', () => {
+				this.index = (this.index + 1) % lines.length;
+				const text = lines[this.index];
+				status.textContent = text;
+
+				if (this.paused || reducedMotion.matches) {
+					stopTyping(text);
+					return;
+				}
+
+				stopTyping('');
+				let cursor = 0;
+				this.typingTimer = setInterval(() => {
+					typed.textContent = text.slice(0, ++cursor);
+					if (cursor >= text.length) clearInterval(this.typingTimer);
+				}, 95);
+			}, { signal });
+
+			motion.addEventListener('click', () => {
+				this.paused = !this.paused;
+				renderMotion();
+			}, { signal });
+			reducedMotion.addEventListener('change', renderMotion, { signal });
+
+			renderMotion();
+			next.disabled = false;
+		}
+
+		disconnectedCallback() {
+			this.controller?.abort();
+			clearInterval(this.typingTimer);
+		}
+	}
+
+	if (!customElements.get('sidebar-terminal')) {
+		customElements.define('sidebar-terminal', SidebarTerminal);
+	}
+</script>
+
+<style>
+	.term {
+		display: block;
+		width: 160px;
+		max-width: 100%;
+		text-align: center;
+	}
+
+	.term__scene {
+		height: 132px;
+		padding: 12px 10px;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		background: var(--panel);
+		font-family: var(--font-mono);
+		font-size: 11px;
+		line-height: 1.5;
+		text-align: left;
+	}
+
+	.term__top {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding-bottom: 9px;
+		margin-bottom: 10px;
+		border-bottom: 1px solid var(--border);
+		color: var(--muted);
+	}
+
+	.term__dot { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); opacity: 0.5; }
+	.term__command { color: var(--accent); }
+	.term__output { padding-top: 5px; min-height: 30px; color: var(--text); word-break: keep-all; }
+
+	.term__cursor {
+		display: inline-block;
+		width: 5px;
+		height: 11px;
+		margin-left: 3px;
+		vertical-align: middle;
+		background: var(--muted);
+		animation: term-blink 1.3s steps(1) infinite;
+	}
+
+	.term__next {
+		padding: 3px 0 0;
+		border: 0;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 11px;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.2s ease;
+	}
+
+	.term__next:disabled { cursor: default; }
+	.term__next:hover { color: var(--accent); }
+	.term__next:focus-visible,
+	.term__motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+	.term__footer { display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 4px; }
+	.term__caption { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+	.term__motion { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+	.term__motion:hover { background: var(--panel); color: var(--accent); }
+	.term__motion[hidden],
+	.term__play-icon { display: none; }
+
+	.term[data-paused='true'] .term__cursor { animation-play-state: paused; }
+	.term[data-paused='true'] .term__pause-icon { display: none; }
+	.term[data-paused='true'] .term__play-icon { display: block; }
+
+	@keyframes term-blink {
+		50% { opacity: 0; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.term__cursor { animation: none; }
+	}
+
+	@media (pointer: coarse) {
+		.term__next { min-height: var(--tap-min-h); }
+		.term__motion { width: var(--tap-min-h); height: var(--tap-min-h); }
+		.term__footer { flex-wrap: wrap; }
+	}
+
+	@media (max-width: 899px), (max-height: 680px) {
+		.term { display: none; }
+	}
+</style>

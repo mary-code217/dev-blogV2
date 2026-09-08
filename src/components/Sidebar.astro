@@ -1,6 +1,10 @@
 ---
 import ThemeToggle from './ThemeToggle.astro';
+import SidebarCat from './SidebarCat.astro';
 import SidebarGarden from './SidebarGarden.astro';
+import SidebarStars from './SidebarStars.astro';
+import SidebarTerminal from './SidebarTerminal.astro';
+import SidebarCoffee from './SidebarCoffee.astro';
 import { SITE_TITLE } from '../consts';
 
 interface Props {
@@ -42,7 +46,11 @@ const nav = [
 	</nav>
 
 	<div class="sidebar-bottom">
-		<SidebarGarden />
+		{activeNav === 'blog' ? <SidebarGarden /> : null}
+		{activeNav === 'wiki' ? <SidebarStars /> : null}
+		{activeNav === 'ai' ? <SidebarTerminal /> : null}
+		{activeNav === 'dict' ? <SidebarCoffee /> : null}
+		{activeNav === 'home' || !activeNav ? <SidebarCat /> : null}
 		<div class="sidebar-actions">
 			<ThemeToggle />
 		</div>

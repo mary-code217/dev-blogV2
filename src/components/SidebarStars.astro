@@ -1,0 +1,193 @@
+---
+const nodes = [
+	{ label: 'Java', message: 'Java · 원리를 이해하는 중', left: 8, top: 17 },
+	{ label: 'Spring', message: 'Spring · 흐름을 따라가는 중', left: 99, top: 11 },
+	{ label: '기록', message: '기록 · 배운 것을 내 언어로', left: 53, top: 65 },
+	{ label: '생각', message: '생각 · 작은 궁금증에서 시작', left: 113, top: 97 },
+];
+
+const dust = [
+	{ top: 8, left: 60, delay: 0 },
+	{ top: 102, left: 22, delay: 2 },
+	{ top: 59, left: 143, delay: 3 },
+	{ top: 128, left: 84, delay: 1 },
+];
+---
+
+<sidebar-stars class="stars" data-pagefind-ignore>
+	<div class="stars__scene">
+		<svg class="stars__lines" viewBox="0 0 160 132" aria-hidden="true">
+			<path d="M27 29 L122 23 L72 77 L27 29 M72 77 L132 109" />
+		</svg>
+		{dust.map((d) => (
+			<span
+				class="stars__dust"
+				aria-hidden="true"
+				style={`top: ${d.top}px; left: ${d.left}px; animation-delay: ${d.delay}s`}
+			></span>
+		))}
+		{nodes.map((node) => (
+			<button
+				class="stars__node"
+				type="button"
+				style={`left: ${node.left}px; top: ${node.top}px`}
+				data-message={node.message}
+			>
+				{node.label}
+			</button>
+		))}
+	</div>
+	<p class="stars__action">어떤 생각이 궁금해?</p>
+	<div class="stars__footer">
+		<p class="stars__caption">생각을 이어두는 중</p>
+		<button class="stars__motion" type="button" aria-label="별자리 움직임 멈춤" aria-pressed="false" hidden>
+			<svg class="stars__pause-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+				<path d="M5 3v10M11 3v10" />
+			</svg>
+			<svg class="stars__play-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+				<path d="m5 3 8 5-8 5Z" />
+			</svg>
+		</button>
+	</div>
+	<p class="sr-only" aria-live="polite" aria-atomic="true" data-stars-status></p>
+</sidebar-stars>
+
+<script>
+	class SidebarStars extends HTMLElement {
+		private paused = false;
+		private controller?: AbortController;
+
+		connectedCallback() {
+			this.controller?.abort();
+			this.controller = new AbortController();
+			const { signal } = this.controller;
+			const nodes = Array.from(this.querySelectorAll<HTMLButtonElement>('.stars__node'));
+			const action = this.querySelector<HTMLElement>('.stars__action');
+			const motion = this.querySelector<HTMLButtonElement>('.stars__motion');
+			const status = this.querySelector<HTMLElement>('[data-stars-status]');
+			if (!nodes.length || !action || !motion || !status) return;
+
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+			const renderMotion = () => {
+				this.dataset.paused = String(this.paused || reducedMotion.matches);
+				motion.hidden = reducedMotion.matches;
+				motion.setAttribute('aria-pressed', String(this.paused));
+				motion.setAttribute('aria-label', this.paused ? '별자리 움직임 재생' : '별자리 움직임 멈춤');
+			};
+
+			nodes.forEach((node) => {
+				node.addEventListener('click', () => {
+					const message = node.dataset.message || '';
+					nodes.forEach((other) => other.classList.toggle('is-active', other === node));
+					action.textContent = message;
+					status.textContent = message;
+				}, { signal });
+			});
+
+			motion.addEventListener('click', () => {
+				this.paused = !this.paused;
+				renderMotion();
+			}, { signal });
+			reducedMotion.addEventListener('change', renderMotion, { signal });
+
+			renderMotion();
+		}
+
+		disconnectedCallback() {
+			this.controller?.abort();
+		}
+	}
+
+	if (!customElements.get('sidebar-stars')) {
+		customElements.define('sidebar-stars', SidebarStars);
+	}
+</script>
+
+<style>
+	.stars {
+		--stars-glow: #a27f52;
+		display: block;
+		width: 160px;
+		max-width: 100%;
+		text-align: center;
+	}
+
+	:global(:root[data-theme='dark']) .stars {
+		--stars-glow: #ccb07b;
+	}
+
+	.stars__scene { position: relative; display: block; width: 160px; height: 132px; }
+	.stars__lines { position: absolute; inset: 0; display: block; width: 160px; height: 132px; }
+	.stars__lines path { stroke: var(--border); stroke-width: 1; fill: none; }
+
+	.stars__dust { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--stars-glow); animation: stars-twinkle 6s ease-in-out infinite; }
+
+	.stars__node {
+		position: absolute;
+		padding: 9px 3px 4px;
+		border: 0;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 11px;
+		min-width: 38px;
+		min-height: 38px;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.2s ease;
+	}
+
+	/* 이름 위에 뜨는 별 하나 */
+	.stars__node::before {
+		content: '';
+		display: block;
+		width: 5px;
+		height: 5px;
+		margin: 0 auto 4px;
+		border-radius: 50%;
+		background: var(--stars-glow);
+		box-shadow: 0 0 7px color-mix(in srgb, var(--stars-glow) 30%, transparent);
+		animation: stars-twinkle 5s ease-in-out infinite;
+	}
+
+	.stars__node:nth-of-type(2)::before { animation-delay: 1.2s; }
+	.stars__node:nth-of-type(3)::before { animation-delay: 2.5s; }
+	.stars__node:nth-of-type(4)::before { animation-delay: 3.7s; }
+	.stars__node:hover,
+	.stars__node.is-active { color: var(--accent); }
+	.stars__node:focus-visible,
+	.stars__motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+	.stars__action { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); word-break: keep-all; }
+	.stars__footer { display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 4px; }
+	.stars__caption { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+	.stars__motion { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+	.stars__motion:hover { background: var(--panel); color: var(--accent); }
+	.stars__motion[hidden],
+	.stars__play-icon { display: none; }
+
+	.stars[data-paused='true'] .stars__dust,
+	.stars[data-paused='true'] .stars__node::before { animation-play-state: paused; }
+	.stars[data-paused='true'] .stars__pause-icon { display: none; }
+	.stars[data-paused='true'] .stars__play-icon { display: block; }
+
+	@keyframes stars-twinkle {
+		0%, 100% { opacity: 0.35; transform: scale(0.8); }
+		50% { opacity: 1; transform: scale(1.15); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.stars__dust, .stars__node::before { animation: none; }
+	}
+
+	@media (pointer: coarse) {
+		.stars__node { min-width: var(--tap-min-h); min-height: var(--tap-min-h); }
+		.stars__motion { width: var(--tap-min-h); height: var(--tap-min-h); }
+		.stars__footer { flex-wrap: wrap; }
+	}
+
+	@media (max-width: 899px), (max-height: 680px) {
+		.stars { display: none; }
+	}
+</style>
