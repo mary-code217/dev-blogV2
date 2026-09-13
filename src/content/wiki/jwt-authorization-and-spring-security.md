@@ -4,7 +4,7 @@ description: "관리자 인가를 예로 JWT의 역할 클레임과 DB 조회를
 date: 2026-09-13
 category: "Spring"
 tags: ["JWT", "Spring Security", "Authorization", "RBAC"]
-draft: true
+draft: false
 ---
 
 JWT 액세스 토큰으로 사용자를 식별하는 서비스에서도 권한 정보를 가져오는 방법은 다릅니다. 토큰에 역할을 함께 담기도 하고, 토큰의 사용자 ID를 기준으로 요청마다 DB에서 역할을 조회하기도 합니다.
