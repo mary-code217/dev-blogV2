@@ -1,0 +1,213 @@
+---
+// coordinated omission: 서버가 1초 멈출 때 두 측정 방식이 남기는 기록 비교
+// 위: 응답이 와야 다음 요청을 보내는 측정 → 멈춘 동안 예정된 요청을 보내지 못해 기록에서 빠진다
+// 아래: 나갔어야 할 시각 기준으로 재는 측정 → 밀린 요청마다 서로 다른 대기 시간이 기록된다
+// 초당 1,000건을 보기 쉽게 초당 10건으로 줄인 예시
+import DemoFrame from './DemoFrame.astro';
+---
+
+<DemoFrame
+	name="omission"
+	title="서버가 1초 멈춘 부하 테스트"
+	description="초당 10건을 4초 동안 보내는 부하 테스트에서 서버가 1.5초부터 1초 동안 멈춥니다. 응답이 와야 다음 요청을 보내는 측정은 멈춘 동안 9건을 보내지 못해 31건만 기록하고, 느린 요청은 1,000ms 한 건(3%)뿐입니다. 나갔어야 할 시각 기준으로 재면 40건이 모두 기록되고, 밀린 10건의 대기 시간이 100ms부터 1,000ms까지 남습니다(25%)."
+	height={270}
+	mobileHeight={250}
+>
+	<dl class="demo-stats">
+		<div class="is-name"><dt>측정 방식</dt><dd>응답 기다림</dd></div>
+		<div data-stat="a-count"><dt>기록된 요청</dt><dd>-</dd></div>
+		<div data-stat="a-slow"><dt>100ms 이상</dt><dd>-</dd></div>
+		<div class="is-accent" data-stat="a-ratio"><dt>느린 비율</dt><dd>-</dd></div>
+	</dl>
+	<dl class="demo-stats">
+		<div class="is-name"><dt class="sr-only">측정 방식</dt><dd>예정 시각 기준</dd></div>
+		<div data-stat="b-count"><dt class="sr-only">기록된 요청</dt><dd>-</dd></div>
+		<div data-stat="b-slow"><dt class="sr-only">100ms 이상</dt><dd>-</dd></div>
+		<div class="is-accent" data-stat="b-ratio"><dt class="sr-only">느린 비율</dt><dd>-</dd></div>
+	</dl>
+</DemoFrame>
+
+<style>
+	.demo-stats .is-name dd {
+		font-family: inherit;
+		font-weight: 600;
+	}
+</style>
+
+<script>
+	import { clamp, easeOut, easeOutBack, mountDemo, setText, type Frame } from './runtime';
+
+	const INTERVAL = 100;
+	const HORIZON = 4000;
+	const STALL_START = 1500;
+	const STALL_END = 2500;
+	const NORMAL = 10;
+	const SLOW = 100;
+
+	// 타임라인(ms): 시뮬레이션 4초를 5.2초에 걸쳐 훑는다
+	const SWEEP = 5200;
+	const DONE = SWEEP + 400;
+
+	type Req = { t: number; latency: number; sent: boolean; row: number };
+
+	// 예정 시각은 0, 100, ..., 3900ms. 멈춘 동안 들어온 요청은 멈춤이 풀리는 순간 응답을 받는다
+	const scheduled = Array.from({ length: HORIZON / INTERVAL }, (_, i) => i * INTERVAL);
+	const stalled = (t: number) => t >= STALL_START && t < STALL_END;
+
+	const laneB: Req[] = scheduled.map((t) => ({
+		t,
+		latency: stalled(t) ? STALL_END - t : NORMAL,
+		sent: true,
+		row: stalled(t) ? (t - STALL_START) / INTERVAL : 0,
+	}));
+
+	const laneA: Req[] = [];
+	let busyUntil = -1;
+	for (const t of scheduled) {
+		const sent = t >= busyUntil;
+		const latency = stalled(t) ? STALL_END - t : NORMAL;
+		laneA.push({ t, latency, sent, row: 0 });
+		if (sent) busyUntil = t + latency;
+	}
+
+	function setup(root: HTMLElement) {
+		const captionEl = root.querySelector('[data-caption]');
+		const modeEl = root.querySelector('[data-mode]');
+		const stat = (key: string) => root.querySelector(`[data-stat="${key}"] dd`);
+
+		function draw({ ctx, W, H, colors, font, time }: Frame) {
+			const pad = { l: 12, r: 12, t: 30, b: 24 };
+			const pw = W - pad.l - pad.r;
+			const laneH = (H - pad.t - pad.b) / 2;
+			const xOf = (t: number) => pad.l + (t / HORIZON) * pw;
+			const sim = clamp(time / SWEEP) * HORIZON;
+			const rowGap = Math.min(6, (laneH - 30) / 10);
+
+			// 멈춘 구간
+			const stallK = easeOut(clamp((sim - STALL_START) / 250));
+			if (stallK > 0) {
+				ctx.globalAlpha = stallK;
+				ctx.fillStyle = colors.panel;
+				ctx.fillRect(xOf(STALL_START), pad.t - 6, xOf(STALL_END) - xOf(STALL_START), H - pad.t - pad.b + 6);
+				ctx.font = `600 11px ${font}`;
+				ctx.textAlign = 'center';
+				ctx.fillStyle = colors.accent;
+				ctx.fillText('서버 멈춤 1초', xOf((STALL_START + STALL_END) / 2), pad.t - 16);
+				ctx.globalAlpha = 1;
+			}
+
+			// 시간축
+			ctx.font = `400 10.5px ${font}`;
+			ctx.fillStyle = colors.muted;
+			for (let s = 0; s <= 4; s++) {
+				ctx.textAlign = s === 0 ? 'left' : s === 4 ? 'right' : 'center';
+				ctx.fillText(`${s}초`, xOf(s * 1000), H - pad.b / 2 + 2);
+			}
+
+			const lanes = [
+				{ reqs: laneA, label: '응답이 와야 다음 요청을 보내는 측정' },
+				{ reqs: laneB, label: '나갔어야 할 시각 기준으로 재는 측정' },
+			];
+			lanes.forEach(({ reqs, label }, li) => {
+				const top = pad.t + li * laneH;
+				const base = top + laneH - 12;
+
+				ctx.strokeStyle = colors.border;
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(pad.l, base + 0.5);
+				ctx.lineTo(W - pad.r, base + 0.5);
+				ctx.stroke();
+
+				ctx.font = `600 11px ${font}`;
+				ctx.textAlign = 'left';
+				ctx.fillStyle = colors.text;
+				ctx.fillText(label, pad.l, top + 6);
+
+				for (const r of reqs) {
+					const pop = clamp((sim - r.t) / 120);
+					if (pop <= 0) continue;
+					const x = xOf(r.t);
+					const y = base - r.row * rowGap;
+
+					if (!r.sent) {
+						// 보내지 못한 예정 자리. 대기 중인 요청의 선 위에 놓이므로 배경색으로 채워 구분한다
+						ctx.globalAlpha = pop;
+						ctx.fillStyle = colors.bg;
+						ctx.strokeStyle = colors.muted;
+						ctx.setLineDash([2, 2]);
+						ctx.beginPath();
+						ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+						ctx.fill();
+						ctx.stroke();
+						ctx.setLineDash([]);
+						ctx.globalAlpha = 1;
+						continue;
+					}
+
+					const slow = r.latency >= SLOW;
+					if (slow) {
+						const end = Math.min(sim, r.t + r.latency);
+						ctx.strokeStyle = colors.accent;
+						ctx.globalAlpha = 0.55;
+						ctx.lineWidth = 2;
+						ctx.beginPath();
+						ctx.moveTo(x, y);
+						ctx.lineTo(xOf(end), y);
+						ctx.stroke();
+						ctx.globalAlpha = 1;
+					}
+					ctx.fillStyle = slow ? colors.accent : colors.muted;
+					ctx.globalAlpha = slow ? 1 : 0.6;
+					ctx.beginPath();
+					ctx.arc(x, y, 3.2 * Math.max(0, easeOutBack(pop)), 0, Math.PI * 2);
+					ctx.fill();
+					ctx.globalAlpha = 1;
+				}
+
+				if (li === 0) {
+					const ghostK = easeOut(clamp((sim - (STALL_START + INTERVAL)) / 300));
+					if (ghostK > 0) {
+						ctx.globalAlpha = ghostK;
+						ctx.font = `400 10.5px ${font}`;
+						ctx.textAlign = 'center';
+						ctx.fillStyle = colors.muted;
+						ctx.fillText('예정됐지만 보내지 못함', xOf(2000), base - 13);
+						ctx.globalAlpha = 1;
+					}
+				}
+			});
+
+			// 재생 위치
+			if (time < SWEEP) {
+				const x = Math.round(xOf(sim)) + 0.5;
+				ctx.strokeStyle = colors.faint;
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(x, pad.t - 4);
+				ctx.lineTo(x, H - pad.b);
+				ctx.stroke();
+			}
+
+			// 응답이 도착한 요청만 기록된다
+			for (const [key, reqs] of [['a', laneA], ['b', laneB]] as const) {
+				const recorded = reqs.filter((r) => r.sent && r.t + r.latency <= sim);
+				const slow = recorded.filter((r) => r.latency >= SLOW).length;
+				setText(stat(`${key}-count`), time > 0 ? `${recorded.length}건` : '-');
+				setText(stat(`${key}-slow`), time > 0 ? `${slow}건` : '-');
+				setText(stat(`${key}-ratio`), recorded.length ? `${Math.round((slow / recorded.length) * 100)}%` : '-');
+			}
+
+			setText(modeEl, '초당 10건으로 줄인 예시');
+			let caption = '같은 서버를 두 방식으로 잰 부하 테스트입니다. 예정 시각은 0.1초 간격입니다.';
+			if (sim >= STALL_START) caption = '서버가 멈추자 위쪽은 응답을 기다리느라 예정된 요청을 보내지 못합니다. 아래쪽은 예정 시각부터 대기 시간을 셉니다.';
+			if (sim >= STALL_END) caption = '멈춤이 풀리면 밀린 요청이 한꺼번에 응답을 받습니다. 아래쪽 대기 시간은 도착 시각에 따라 100ms부터 1,000ms까지 제각각입니다.';
+			if (time >= DONE) caption = '같은 1초 멈춤인데 위쪽 기록에는 느린 요청이 1건(3%)뿐이고, 아래쪽에는 10건(25%)이 남습니다.';
+			setText(captionEl, caption);
+		}
+
+		mountDemo(root, { duration: DONE, draw });
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-demo="omission"]').forEach(setup);
+</script>

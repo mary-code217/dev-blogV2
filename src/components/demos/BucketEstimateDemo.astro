@@ -1,0 +1,219 @@
+---
+// Prometheus histogram_quantile이 p99를 추정하는 과정
+// 위키 예시에서 990번째 요청이 든 (100ms, 250ms] 버킷의 40건(전부 120ms)만 확대해서,
+// 값이 버려지고 "버킷 안에 고르게 퍼져 있다"는 가정으로 250ms가 나오는 과정을 보여준다
+import DemoFrame from './DemoFrame.astro';
+---
+
+<DemoFrame
+	name="bucket-estimate"
+	title="990번째가 든 버킷 확대"
+	description="100ms 초과 250ms 이하 버킷에 든 40건은 실제로 전부 120ms입니다. Prometheus는 값을 버리고 개수만 남긴 뒤 40건이 구간 안에 고르게 퍼져 있다고 가정하므로, 990번째 요청을 버킷 끝인 250ms로 추정합니다. 버킷 경계를 125ms로 당기면 추정값은 125ms가 됩니다."
+	height={260}
+	mobileHeight={240}
+>
+	<Fragment slot="controls">
+		<button type="button" class="demo-btn" data-bound="250" aria-pressed="true" disabled>경계 250ms</button>
+		<button type="button" class="demo-btn" data-bound="125" aria-pressed="false" disabled>경계 125ms</button>
+	</Fragment>
+	<dl class="demo-stats">
+		<div data-stat="bucket"><dt>버킷</dt><dd>-</dd></div>
+		<div data-stat="real"><dt>실제 p99</dt><dd>-</dd></div>
+		<div class="is-blue" data-stat="est"><dt>추정 p99</dt><dd>-</dd></div>
+		<div class="is-accent" data-stat="err"><dt>오차</dt><dd>-</dd></div>
+	</dl>
+</DemoFrame>
+
+<script>
+	import { Tween, clamp, easeInOut, easeOut, easeOutBack, formatMs as fmt, lerp, mountDemo, setText, type Frame } from './runtime';
+
+	const COUNT = 40;
+	const REAL = 120;
+	const LOWER = 100;
+	const X_MIN = 90;
+	const X_MAX = 260;
+	const X_TICKS = [100, 125, 150, 200, 250];
+
+	// 타임라인(ms)
+	const APPEAR_END = 1300;
+	const REAL_MARK = 1500;
+	const LOSE_START = 2600;
+	const LOSE_END = 3300;
+	const SPREAD_START = 3800;
+	const SPREAD_END = 5600;
+	const DONE = 6300;
+
+	function setup(root: HTMLElement) {
+		const modeEl = root.querySelector('[data-mode]');
+		const captionEl = root.querySelector('[data-caption]');
+		const boundBtns = [...root.querySelectorAll<HTMLButtonElement>('[data-bound]')];
+		const stat = (key: string) => root.querySelector(`[data-stat="${key}"] dd`);
+		const boundT = new Tween(1200);
+
+		function draw({ ctx, W, H, colors, font, time, now, done }: Frame) {
+			const pad = { l: 56, r: 16, t: 34, b: 28 };
+			const pw = W - pad.l - pad.r;
+			const ph = H - pad.t - pad.b;
+			const xOf = (v: number) => pad.l + ((v - X_MIN) / (X_MAX - X_MIN)) * pw;
+			const yOf = (i: number) => pad.t + ph - (i / COUNT) * ph;
+
+			const upper = lerp(250, 125, boundT.value(now));
+			const lose = easeInOut(clamp((time - LOSE_START) / (LOSE_END - LOSE_START)));
+			const spread = clamp((time - SPREAD_START) / (SPREAD_END - SPREAD_START));
+			const estX = (i: number) => xOf(LOWER + ((upper - LOWER) * i) / COUNT);
+
+			// 버킷 영역
+			ctx.fillStyle = colors.panel;
+			ctx.fillRect(xOf(LOWER), pad.t, xOf(upper) - xOf(LOWER), ph);
+			ctx.strokeStyle = colors.faint;
+			ctx.lineWidth = 1;
+			ctx.setLineDash([4, 3]);
+			for (const v of [LOWER, upper]) {
+				const x = Math.round(xOf(v)) + 0.5;
+				ctx.beginPath();
+				ctx.moveTo(x, pad.t);
+				ctx.lineTo(x, pad.t + ph);
+				ctx.stroke();
+			}
+			ctx.setLineDash([]);
+
+			// 축
+			ctx.strokeStyle = colors.border;
+			ctx.beginPath();
+			ctx.moveTo(pad.l, pad.t + ph + 0.5);
+			ctx.lineTo(W - pad.r, pad.t + ph + 0.5);
+			ctx.stroke();
+			ctx.font = `400 10.5px ${font}`;
+			ctx.fillStyle = colors.muted;
+			ctx.textAlign = 'center';
+			for (const v of X_TICKS) {
+				if (v === 150 && pw < 360) continue; // 좁은 화면에서는 125ms 라벨과 붙는다
+				ctx.fillText(`${v}ms`, xOf(v), H - pad.b / 2 + 2);
+			}
+			ctx.textAlign = 'right';
+			ctx.fillText('990번째', pad.l - 8, yOf(COUNT));
+			ctx.fillText('951번째', pad.l - 8, yOf(1));
+
+			// 실제 값: 40건이 120ms 한 줄에 서 있다가, 값이 버려지면 윤곽만 남는다
+			for (let i = 1; i <= COUNT; i++) {
+				const pop = clamp((time - ((i - 1) / COUNT) * APPEAR_END) / 260);
+				if (pop <= 0) continue;
+				const r = 3.2 * Math.max(0, easeOutBack(pop));
+				const x = xOf(REAL);
+				const y = yOf(i);
+				ctx.beginPath();
+				ctx.arc(x, y, r, 0, Math.PI * 2);
+				ctx.globalAlpha = pop * (1 - lose) * 0.8;
+				ctx.fillStyle = colors.muted;
+				ctx.fill();
+				ctx.globalAlpha = pop * lose * 0.6;
+				ctx.strokeStyle = colors.muted;
+				ctx.lineWidth = 1;
+				ctx.stroke();
+			}
+			ctx.globalAlpha = 1;
+
+			// 균등 가정: 윤곽 자리에서 대각선 자리로 옮겨 간다
+			if (spread > 0) {
+				ctx.globalAlpha = 0.45 * easeOut(spread);
+				ctx.strokeStyle = colors.blue;
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(xOf(LOWER), yOf(0));
+				ctx.lineTo(xOf(upper), yOf(COUNT));
+				ctx.stroke();
+				ctx.globalAlpha = 1;
+
+				ctx.fillStyle = colors.blue;
+				for (let i = 1; i <= COUNT; i++) {
+					const k = easeInOut(clamp(spread * 1.6 - ((i - 1) / COUNT) * 0.6));
+					if (k <= 0) continue;
+					ctx.globalAlpha = Math.min(1, k * 3);
+					ctx.beginPath();
+					ctx.arc(lerp(xOf(REAL), estX(i), k), yOf(i), 3.2, 0, Math.PI * 2);
+					ctx.fill();
+				}
+				ctx.globalAlpha = 1;
+			}
+
+			// 990번째 표식: 실제는 점 왼쪽, 추정은 점 위에 태그를 단다
+			const topY = yOf(COUNT);
+			const realK = easeOut(clamp((time - REAL_MARK) / 400));
+			ctx.font = `600 11px ${font}`;
+			if (realK > 0) {
+				ctx.globalAlpha = realK;
+				ctx.strokeStyle = colors.text;
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.arc(xOf(REAL), topY, 6, 0, Math.PI * 2);
+				ctx.stroke();
+				ctx.textAlign = 'right';
+				ctx.fillStyle = colors.text;
+				ctx.fillText('실제', xOf(REAL) - 11, topY);
+				ctx.globalAlpha = 1;
+			}
+			const topK = easeInOut(clamp(spread * 1.6 - 0.6));
+			if (topK > 0) {
+				const x = lerp(xOf(REAL), estX(COUNT), topK);
+				ctx.strokeStyle = colors.accent;
+				ctx.lineWidth = 1;
+				ctx.setLineDash([2, 3]);
+				ctx.beginPath();
+				ctx.moveTo(xOf(REAL) + 7, topY);
+				ctx.lineTo(x - 7, topY);
+				ctx.stroke();
+				ctx.setLineDash([]);
+				ctx.strokeStyle = colors.blue;
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.arc(x, topY, 6, 0, Math.PI * 2);
+				ctx.stroke();
+				ctx.textAlign = 'center';
+				ctx.fillStyle = colors.blue;
+				ctx.fillText('추정', x, topY - 16);
+			}
+
+			// 캔버스 밖 HTML
+			setText(modeEl, `버킷 ${LOWER}ms 초과 ~ ${Math.round(upper)}ms 이하`);
+			setText(stat('bucket'), `${COUNT}건`);
+			setText(stat('real'), realK > 0 ? fmt(REAL) : '-');
+			const estNow = lerp(REAL, upper, topK);
+			setText(stat('est'), topK > 0 ? fmt(estNow) : '-');
+			setText(stat('err'), topK > 0 ? `+${Math.round(((estNow - REAL) / REAL) * 100)}%` : '-');
+
+			const is125 = boundT.target === 1;
+			boundBtns.forEach((b) => {
+				if (b.disabled === done) b.disabled = !done;
+				b.setAttribute('aria-pressed', String((b.dataset.bound === '125') === is125));
+			});
+
+			let caption = '990번째 요청이 든 버킷만 확대했습니다. 이 버킷의 40건은 실제로 전부 120ms입니다.';
+			if (time >= LOSE_START) caption = "Prometheus는 값을 버리고 '이 버킷에 40건'이라는 개수만 남깁니다.";
+			if (time >= SPREAD_START) caption = '그래서 40건이 버킷 안에 고르게 퍼져 있다고 가정하고, 990번째를 버킷의 40번째 자리에서 읽습니다.';
+			if (done) {
+				caption = is125
+					? '경계를 125ms로 당기면 같은 데이터로도 추정값이 125ms가 됩니다. 목표치 근처에 버킷을 촘촘히 두는 이유입니다.'
+					: '40번째 자리는 버킷의 끝이라 추정 p99는 250ms입니다. 실제 120ms보다 108% 부풀려졌습니다.';
+			}
+			setText(captionEl, caption);
+		}
+
+		const demo = mountDemo(root, {
+			duration: DONE,
+			draw,
+			animating: (now) => boundT.active(now),
+			onReplay: () => boundT.reset(),
+		});
+
+		boundBtns.forEach((b) =>
+			b.addEventListener('click', () => {
+				const to = b.dataset.bound === '125' ? 1 : 0;
+				if (boundT.target === to) return;
+				boundT.set(to, performance.now(), demo.reduceMotion);
+				demo.kick();
+			}),
+		);
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-demo="bucket-estimate"]').forEach(setup);
+</script>
