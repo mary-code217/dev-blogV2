@@ -255,11 +255,14 @@ hr {
 	margin: var(--space-lg) 0;
 }
 
+.table-wrap {
+	overflow-x: auto;
+	margin: 0 0 1em 0;
+}
+
 table {
 	width: 100%;
 	border-collapse: collapse;
-	display: block;
-	overflow-x: auto;
 }
 
 th, td {
