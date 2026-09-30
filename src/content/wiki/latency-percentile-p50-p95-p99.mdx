@@ -6,6 +6,8 @@ category: "Backend"
 tags: ["Monitoring", "Observability", "Performance", "Prometheus", "SLO"]
 ---
 
+import LatencySortDemo from '../../components/demos/LatencySortDemo.astro';
+
 모니터링 대시보드를 처음 붙이면 가장 먼저 올리게 되는 게 평균 응답 시간입니다.
 숫자 하나로 서비스가 빠른지 느린지 알 수 있으니 직관적이기 때문입니다.
 
@@ -58,31 +60,7 @@ p99는 1,000건 중 990번째, p95는 950번째, p50은 500번째에 서 있는 
 
 앞의 데이터를 줄 세우면 이렇게 됩니다.
 
-<div style="border: 2px solid currentColor; border-radius: 6px; padding: 1rem; font-family: monospace; font-size: 0.9em; display: inline-block; min-width: 340px;">
-  <div style="text-align: center; font-weight: bold; margin-bottom: 0.75rem;">빠른 순서로 줄 세운 요청 1,000건</div>
-  <div style="border: 1px solid currentColor; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;">
-    <div style="display: flex; justify-content: space-between; gap: 1rem;">
-      <span>1번 ~ 950번</span><span style="font-weight: bold;">40ms</span>
-    </div>
-    <div style="font-size: 0.85em; opacity: 0.75; margin-top: 0.3rem;">↑ 500번째(p50) · 950번째(p95)가 여기</div>
-  </div>
-  <div style="border: 1px solid currentColor; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;">
-    <div style="display: flex; justify-content: space-between; gap: 1rem;">
-      <span>951번 ~ 990번</span><span style="font-weight: bold;">120ms</span>
-    </div>
-    <div style="font-size: 0.85em; opacity: 0.75; margin-top: 0.3rem;">↑ 990번째(p99)가 여기, 이 칸의 마지막 자리</div>
-  </div>
-  <div style="border: 1px solid currentColor; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;">
-    <div style="display: flex; justify-content: space-between; gap: 1rem;">
-      <span>991번 ~ 999번</span><span style="font-weight: bold;">2,100ms</span>
-    </div>
-  </div>
-  <div style="border: 1px solid currentColor; border-radius: 4px; padding: 0.5rem 0.75rem;">
-    <div style="display: flex; justify-content: space-between; gap: 1rem;">
-      <span>1000번</span><span style="font-weight: bold;">8,000ms</span>
-    </div>
-  </div>
-</div>
+<LatencySortDemo />
 
 여기서 중요한 건 백분위가 답하는 질문의 성격입니다.
 

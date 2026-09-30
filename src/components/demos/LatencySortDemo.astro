@@ -1,0 +1,414 @@
+---
+// 응답 시간 1,000건을 도착순으로 찍은 뒤 빠른 순서로 줄 세우는 애니메이션
+// 데이터는 latency-percentile 위키 1절의 예시(40ms 950건, 120ms 40건, 2,100ms 9건, 8,000ms 1건)
+// 자동 재생은 p50/p95/p99 표식까지. 꼬리 확대와 흩어진 값(모의 데이터)은 버튼으로만 보여준다
+import DemoFrame from './DemoFrame.astro';
+---
+
+<DemoFrame
+	name="latency-sort"
+	title="1분간 요청 1,000건"
+	description="요청 1,000건(40ms 950건, 120ms 40건, 2,100ms 9건, 8,000ms 1건)을 빠른 순서로 줄 세운 그래프입니다. 평균 69.7ms, 최댓값 8,000ms, p50 40ms, p95 40ms, p99 120ms입니다. 990번째 요청이 p99이고, 그보다 느린 요청은 10건입니다."
+>
+	<Fragment slot="controls">
+		<button type="button" class="demo-btn" data-toggle="stretch" aria-pressed="false" disabled>꼬리 확대</button>
+		<button type="button" class="demo-btn" data-toggle="real" aria-pressed="false" disabled>값 흩뜨리기(모의)</button>
+	</Fragment>
+	<dl class="demo-stats">
+		<div class="is-blue" data-stat="mean"><dt>평균</dt><dd>-</dd></div>
+		<div class="is-accent" data-stat="max"><dt>최댓값</dt><dd>-</dd></div>
+		<div data-stat="p50"><dt>p50</dt><dd>-</dd></div>
+		<div data-stat="p95"><dt>p95</dt><dd>-</dd></div>
+		<div data-stat="p99"><dt>p99</dt><dd>-</dd></div>
+	</dl>
+</DemoFrame>
+
+<script>
+	import { Tween, clamp, easeInOut, easeOut, easeOutBack, formatMs as fmt, lerp, mountDemo, seeded, setText, type Frame } from './runtime';
+
+	const N = 1000;
+	const FAST = 40;
+	const DB = 120;
+	const POOL = 2100;
+	const TIMEOUT = 8000;
+	const TIMEOUT_INDEX = 700;
+	const P_RANKS = [499, 949, 989];
+
+	// 타임라인(ms)
+	const STREAM_END = 6500;
+	const MORPH_START = 7400;
+	const MORPH_END = 9000;
+	const MARK_START = 9100;
+	const MARK_GAP = 380;
+	const DONE = MARK_START + MARK_GAP * 4 + 700;
+	const HIT_AT = (TIMEOUT_INDEX / N) * STREAM_END;
+
+	const LOG_MIN = Math.log(15);
+	const LOG_MAX = Math.log(12000);
+	const Y_TICKS: [number, string][] = [
+		[20, '20ms'],
+		[100, '100ms'],
+		[500, '500ms'],
+		[1000, '1s'],
+		[5000, '5s'],
+		[10000, '10s'],
+	];
+	const PCT_TICKS: [number, string][] = [
+		[0.5, '50%'],
+		[0.9, '90%'],
+		[0.99, '99%'],
+		[0.999, '99.9%'],
+	];
+
+	type Point = { v: number; t: number; jy: number; rank: number; real: number; realRank: number };
+
+	const logLerp = (a: number, b: number, k: number) => Math.exp(lerp(Math.log(a), Math.log(b), k));
+	// 꼬리 확대 척도: 90%, 99%, 99.9%가 같은 간격이 된다
+	const pctScale = (p: number) => Math.log10(1 / (1 - p)) / Math.log10(2 * N);
+
+	function buildData() {
+		const rand = seeded(7);
+		const gauss = () => Math.sqrt(-2 * Math.log(rand() || 1e-9)) * Math.cos(2 * Math.PI * rand());
+		const values = [...Array(950).fill(FAST), ...Array(40).fill(DB), ...Array(9).fill(POOL), TIMEOUT];
+		const swap = (a: number, b: number) => ([values[a], values[b]] = [values[b], values[a]]);
+
+		for (let i = values.length - 1; i > 0; i--) swap(i, Math.floor(rand() * (i + 1)));
+		// 설명용 배치: 8초짜리는 70% 지점에, 첫 40건은 평균선이 튀지 않도록 빠른 요청으로
+		swap(values.indexOf(TIMEOUT), TIMEOUT_INDEX);
+		for (let i = 0; i < 40; i++) {
+			if (values[i] < POOL) continue;
+			let j = 41;
+			while (values[j] >= POOL || j === TIMEOUT_INDEX) j++;
+			swap(i, j);
+		}
+
+		// 모의 데이터: 같은 건수 구성에 값의 흩어짐만 더한다
+		const spread: Record<number, number> = { [FAST]: 0.2, [DB]: 0.28, [POOL]: 0.3, [TIMEOUT]: 0 };
+		const points: Point[] = values.map((v, i) => ({
+			v,
+			t: (i + rand() * 0.9) / N,
+			jy: Math.exp(gauss() * (v < POOL ? 0.14 : 0.05)),
+			rank: 0,
+			real: v * Math.exp(gauss() * spread[v]),
+			realRank: 0,
+		}));
+		const order = points.map((_, i) => i).sort((a, b) => points[a].v - points[b].v || points[a].t - points[b].t);
+		order.forEach((idx, r) => (points[idx].rank = r));
+		const realOrder = points.map((_, i) => i).sort((a, b) => points[a].real - points[b].real);
+		realOrder.forEach((idx, r) => (points[idx].realRank = r));
+
+		let sum = 0;
+		let max = 0;
+		const mean: number[] = [];
+		const maxes: number[] = [];
+		points.forEach((p, i) => {
+			sum += p.v;
+			max = Math.max(max, p.v);
+			mean.push(sum / (i + 1));
+			maxes.push(max);
+		});
+		return {
+			points,
+			mean,
+			maxes,
+			sorted: order.map((i) => points[i].v),
+			realSorted: realOrder.map((i) => points[i].real),
+			total: sum / N,
+			realTotal: points.reduce((s, p) => s + p.real, 0) / N,
+		};
+	}
+
+	const data = buildData();
+	const meanBeforeHit = fmt(data.mean[TIMEOUT_INDEX - 1]);
+	const meanAfterHit = fmt(data.mean[TIMEOUT_INDEX]);
+
+	function setup(root: HTMLElement) {
+		const modeEl = root.querySelector('[data-mode]');
+		const captionEl = root.querySelector('[data-caption]');
+		const stretchBtn = root.querySelector<HTMLButtonElement>('[data-toggle="stretch"]')!;
+		const realBtn = root.querySelector<HTMLButtonElement>('[data-toggle="real"]')!;
+		const stat = (key: string) => root.querySelector(`[data-stat="${key}"] dd`);
+		const pStats = ['p50', 'p95', 'p99'].map(stat);
+		const stretchT = new Tween(1200);
+		const realT = new Tween(1400);
+
+		function draw({ ctx, W, H, colors, font, time, now, done }: Frame) {
+			const pad = { l: 46, r: 12, t: 44, b: 26 };
+			const pw = W - pad.l - pad.r;
+			const ph = H - pad.t - pad.b;
+			const yOf = (v: number) => pad.t + (1 - (Math.log(v) - LOG_MIN) / (LOG_MAX - LOG_MIN)) * ph;
+			const xTime = (t: number) => pad.l + t * pw;
+
+			const shownCount = Math.floor(clamp(time / STREAM_END) * N);
+			const morph = clamp((time - MORPH_START) / (MORPH_END - MORPH_START));
+			const stretch = stretchT.value(now);
+			const real = realT.value(now);
+			const markK = (i: number) => easeOut(clamp((time - (MARK_START + MARK_GAP * i)) / 480));
+			const xRank = (r: number) => pad.l + lerp((r + 0.5) / N, pctScale((r + 0.5) / N), stretch) * pw;
+			const valueAt = (r: number) => logLerp(data.sorted[r], data.realSorted[r], real);
+
+			// 격자와 y축
+			ctx.font = `400 10.5px ${font}`;
+			ctx.textAlign = 'right';
+			ctx.lineWidth = 1;
+			for (const [v, label] of Y_TICKS) {
+				const y = Math.round(yOf(v)) + 0.5;
+				ctx.strokeStyle = colors.border;
+				ctx.beginPath();
+				ctx.moveTo(pad.l, y);
+				ctx.lineTo(W - pad.r, y);
+				ctx.stroke();
+				ctx.fillStyle = colors.muted;
+				ctx.fillText(label, pad.l - 8, y);
+			}
+
+			if (stretch > 0) {
+				ctx.globalAlpha = stretch;
+				ctx.strokeStyle = colors.border;
+				for (const [p] of PCT_TICKS) {
+					const x = Math.round(pad.l + pctScale(p) * pw) + 0.5;
+					ctx.beginPath();
+					ctx.moveTo(x, pad.t);
+					ctx.lineTo(x, pad.t + ph);
+					ctx.stroke();
+				}
+				ctx.globalAlpha = 1;
+			}
+
+			// x축 라벨: 도착순 → 줄 세운 순 → 꼬리 확대 눈금
+			const axisY = H - pad.b / 2 + 2;
+			ctx.fillStyle = colors.muted;
+			ctx.globalAlpha = 1 - morph;
+			ctx.textAlign = 'left';
+			ctx.fillText('0초', pad.l, axisY);
+			ctx.textAlign = 'center';
+			ctx.fillText('도착 시각', pad.l + pw / 2, axisY);
+			ctx.textAlign = 'right';
+			ctx.fillText('60초', W - pad.r, axisY);
+			ctx.globalAlpha = morph * (1 - stretch);
+			ctx.textAlign = 'left';
+			ctx.fillText('1번째', pad.l, axisY);
+			ctx.textAlign = 'center';
+			ctx.fillText('빠른 순서', pad.l + pw / 2, axisY);
+			ctx.textAlign = 'right';
+			ctx.fillText('1,000번째', W - pad.r, axisY);
+			ctx.globalAlpha = stretch;
+			ctx.textAlign = 'center';
+			for (const [p, label] of PCT_TICKS) ctx.fillText(label, pad.l + pctScale(p) * pw, axisY);
+			ctx.globalAlpha = 1;
+
+			// 요청 점: 느린 요청을 위에 그리도록 두 번에 나눠 그린다
+			for (const slowPass of [false, true]) {
+				ctx.fillStyle = slowPass ? colors.accent : colors.muted;
+				for (let i = 0; i < N; i++) {
+					const p = data.points[i];
+					if ((p.v >= POOL) !== slowPass) continue;
+					const pop = clamp((time - (i / N) * STREAM_END) / 320);
+					if (pop <= 0) continue;
+					const sortK = easeInOut(clamp(morph * 1.5 - (p.rank / N) * 0.5));
+					const realK = easeInOut(clamp(real * 1.4 - (p.rank / N) * 0.4));
+					const sx = lerp(xTime(p.t), xRank(p.rank), sortK);
+					const sy = lerp(yOf(p.v * p.jy), yOf(p.v), sortK);
+					const x = lerp(sx, xRank(p.realRank), realK);
+					const y = lerp(sy, yOf(p.real), realK);
+					const r = (slowPass ? 3 : 2) * Math.max(0, easeOutBack(pop));
+					ctx.globalAlpha = (slowPass ? 0.95 : 0.4) * pop;
+					ctx.beginPath();
+					ctx.arc(x, y, r, 0, Math.PI * 2);
+					ctx.fill();
+				}
+			}
+			ctx.globalAlpha = 1;
+
+			// 8초짜리가 도착하는 순간의 파문
+			const ripple = clamp((time - HIT_AT) / 700);
+			if (ripple > 0 && ripple < 1 && morph === 0) {
+				const p = data.points[TIMEOUT_INDEX];
+				ctx.strokeStyle = colors.accent;
+				ctx.globalAlpha = 1 - ripple;
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.arc(xTime(p.t), yOf(p.v * p.jy), 4 + easeOut(ripple) * 22, 0, Math.PI * 2);
+				ctx.stroke();
+				ctx.globalAlpha = 1;
+			}
+
+			// 누적 평균선과 최댓값선
+			const lineAlpha = 1 - clamp(morph * 2.5);
+			if (shownCount > 0 && lineAlpha > 0) {
+				ctx.globalAlpha = lineAlpha;
+				ctx.lineWidth = 1.75;
+				ctx.lineJoin = 'round';
+
+				ctx.strokeStyle = colors.accent;
+				ctx.beginPath();
+				for (let i = 0; i < shownCount; i++) {
+					const x = xTime(data.points[i].t);
+					const y = yOf(data.maxes[i]);
+					if (i === 0) ctx.moveTo(x, y);
+					else {
+						ctx.lineTo(x, yOf(data.maxes[i - 1]));
+						ctx.lineTo(x, y);
+					}
+				}
+				ctx.stroke();
+
+				ctx.strokeStyle = colors.blue;
+				ctx.beginPath();
+				for (let i = 0; i < shownCount; i++) {
+					const x = xTime(data.points[i].t);
+					const y = yOf(data.mean[i]);
+					if (i === 0) ctx.moveTo(x, y);
+					else ctx.lineTo(x, y);
+				}
+				ctx.stroke();
+
+				const last = shownCount - 1;
+				const lx = xTime(data.points[last].t);
+				for (const [color, v] of [[colors.accent, data.maxes[last]], [colors.blue, data.mean[last]]] as const) {
+					ctx.fillStyle = color;
+					ctx.beginPath();
+					ctx.arc(lx, yOf(v), 3.5, 0, Math.PI * 2);
+					ctx.fill();
+				}
+				ctx.globalAlpha = 1;
+			}
+
+			// 백분위 표식. p95와 p99는 가까이 붙으므로 라벨을 두 줄로 나누고, 축이 벌어지면 각 선 가운데로 옮긴다
+			const rowY = [14, 31];
+			const markers = [
+				{ label: 'p50', row: 0, align: 'center', dx: 0 },
+				{ label: 'p95', row: 1, align: 'right', dx: -6 },
+				{ label: 'p99', row: 0, align: 'right', dx: 4 },
+			];
+			markers.forEach((m, i) => {
+				const k = markK(i);
+				if (k <= 0) return;
+				const rank = P_RANKS[i];
+				const x = xRank(rank);
+				const v = valueAt(rank);
+				const labelY = rowY[m.row];
+				const bottom = pad.t + ph;
+
+				ctx.globalAlpha = k;
+				ctx.strokeStyle = colors.text;
+				ctx.lineWidth = 1;
+				ctx.setLineDash([3, 3]);
+				ctx.beginPath();
+				ctx.moveTo(x, bottom);
+				ctx.lineTo(x, lerp(bottom, labelY + 7, k));
+				ctx.stroke();
+				ctx.setLineDash([]);
+
+				ctx.fillStyle = colors.bg;
+				ctx.strokeStyle = colors.text;
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.arc(x, yOf(v), 4, 0, Math.PI * 2);
+				ctx.fill();
+				ctx.stroke();
+
+				const valueText = ` ${fmt(v)}`;
+				ctx.font = `400 11px ${font}`;
+				const valueW = ctx.measureText(valueText).width;
+				ctx.font = `700 11px ${font}`;
+				const labelW = ctx.measureText(m.label).width;
+				const total = labelW + valueW;
+				const packed = m.align === 'center' ? x - total / 2 : x + m.dx - total;
+				const left = lerp(packed, x - total / 2, stretch);
+				ctx.textAlign = 'left';
+				ctx.fillStyle = colors.text;
+				ctx.fillText(m.label, left, labelY);
+				ctx.font = `400 11px ${font}`;
+				ctx.fillStyle = colors.muted;
+				ctx.fillText(valueText, left + labelW, labelY);
+				ctx.globalAlpha = 1;
+			});
+
+			// 최댓값: 라벨을 점 왼쪽에 두고 점선으로 이어준다
+			const maxK = markK(3);
+			if (maxK > 0) {
+				const px = xRank(N - 1);
+				const py = yOf(TIMEOUT);
+				const labelEnd = lerp(xRank(P_RANKS[1]) - 10, px - 16, stretch);
+				ctx.globalAlpha = maxK;
+				ctx.strokeStyle = colors.accent;
+				ctx.lineWidth = 1;
+				ctx.setLineDash([2, 3]);
+				ctx.beginPath();
+				ctx.moveTo(labelEnd + 4, py);
+				ctx.lineTo(px - 5, py);
+				ctx.stroke();
+				ctx.setLineDash([]);
+				ctx.font = `600 11px ${font}`;
+				ctx.textAlign = 'right';
+				ctx.fillStyle = colors.accent;
+				ctx.fillText(`최댓값 ${fmt(TIMEOUT)}`, labelEnd, py);
+				ctx.globalAlpha = 1;
+			}
+
+			// 평균 가로선
+			const meanK = markK(4);
+			const meanNow = logLerp(data.total, data.realTotal, real);
+			if (meanK > 0) {
+				const y = yOf(meanNow);
+				ctx.globalAlpha = meanK;
+				ctx.strokeStyle = colors.blue;
+				ctx.lineWidth = 1.25;
+				ctx.setLineDash([5, 4]);
+				ctx.beginPath();
+				ctx.moveTo(pad.l, y);
+				ctx.lineTo(lerp(pad.l, W - pad.r, meanK), y);
+				ctx.stroke();
+				ctx.setLineDash([]);
+				ctx.font = `600 11px ${font}`;
+				ctx.textAlign = 'left';
+				ctx.fillStyle = colors.blue;
+				ctx.fillText(`평균 ${fmt(meanNow)}`, pad.l + 6, y - 9);
+				ctx.globalAlpha = 1;
+			}
+
+			// 캔버스 밖 HTML
+			let mode = morph > 0.5 ? '빠른 순서로 줄 세움' : '도착순';
+			if (stretch > 0.5) mode += ' · 꼬리 확대';
+			if (real > 0.5) mode += ' · 모의 데이터';
+			setText(modeEl, mode);
+			setText(stat('mean'), shownCount ? fmt(meanK > 0 ? meanNow : data.mean[shownCount - 1]) : '-');
+			setText(stat('max'), shownCount ? fmt(data.maxes[shownCount - 1]) : '-');
+			pStats.forEach((el, i) => setText(el, markK(i) > 0 ? fmt(valueAt(P_RANKS[i])) : '-'));
+
+			for (const [btn, t] of [[stretchBtn, stretchT], [realBtn, realT]] as const) {
+				if (btn.disabled === done) btn.disabled = !done;
+				btn.setAttribute('aria-pressed', String(t.target === 1));
+			}
+
+			let caption = '요청이 도착하는 대로 찍습니다. 세로축은 로그 눈금이고, 도착 순서는 설명을 위해 배치했습니다.';
+			if (time >= HIT_AT) caption = `8초짜리 한 건에 최댓값은 8,000ms로 뛰지만, 평균은 ${meanBeforeHit}에서 ${meanAfterHit}로 조금 오를 뿐입니다.`;
+			if (time >= STREAM_END + 400) caption = '같은 1,000건을 빠른 순서로 줄 세웁니다.';
+			if (time >= MARK_START) caption = '990번째에 선 요청이 p99(120ms)입니다. 이보다 느린 요청은 맨 끝 10건뿐입니다.';
+			if (time >= MARK_START + MARK_GAP * 4) caption = 'p99 120ms: 990건이 이보다 빠르고, 느린 건 10건입니다. 평균 69.7ms 높이에는 요청이 한 건도 없습니다.';
+			if (done && stretchT.target === 1) caption = '90%, 99%, 99.9%가 같은 간격이 되게 가로축을 벌려 꼬리를 확대했습니다. 가로 폭은 건수를 뜻하지 않습니다.';
+			if (done && realT.target === 1) caption = '같은 건수 구성에 값의 흩어짐을 더한 모의 데이터입니다. 계단이 곡선이 되지만, 실제 분포의 모양은 서비스마다 다릅니다.';
+			setText(captionEl, caption);
+		}
+
+		const demo = mountDemo(root, {
+			duration: DONE,
+			draw,
+			animating: (now) => stretchT.active(now) || realT.active(now),
+			onReplay: () => {
+				stretchT.reset();
+				realT.reset();
+			},
+		});
+
+		for (const [btn, t] of [[stretchBtn, stretchT], [realBtn, realT]] as const) {
+			btn.addEventListener('click', () => {
+				t.set(t.target === 1 ? 0 : 1, performance.now(), demo.reduceMotion);
+				demo.kick();
+			});
+		}
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-demo="latency-sort"]').forEach(setup);
+</script>

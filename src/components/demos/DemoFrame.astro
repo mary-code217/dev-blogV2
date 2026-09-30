@@ -1,0 +1,172 @@
+---
+// 글 속 canvas 데모의 공통 틀: 제목, 컨트롤, 캔버스, 수치 칸, 캡션
+// 스크립트는 각 데모가 data-demo 값으로 이 틀을 찾아 runtime.ts의 mountDemo를 붙인다
+interface Props {
+	name: string;
+	title: string;
+	/** 화면 낭독기용 요약. 캔버스는 aria-hidden이므로 결과를 여기에 적는다 */
+	description: string;
+	height?: number;
+	mobileHeight?: number;
+}
+
+const { name, title, description, height = 280, mobileHeight = 230 } = Astro.props;
+---
+
+<figure class="demo" data-demo={name}>
+	<div class="demo-head">
+		<span class="demo-title">{title} <span class="demo-mode" data-mode></span></span>
+		<div class="demo-controls">
+			<slot name="controls" />
+			<button type="button" class="demo-btn" data-play>결과 보기</button>
+		</div>
+	</div>
+	<p class="sr-only">{description}</p>
+	<canvas class="demo-canvas" aria-hidden="true" style={`--h: ${height}px; --h-m: ${mobileHeight}px`}></canvas>
+	<slot />
+	<figcaption class="demo-caption" data-caption></figcaption>
+</figure>
+
+<style>
+	.demo {
+		margin: 1.75rem 0;
+		padding: 14px 16px 12px;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		background: var(--bg);
+	}
+
+	.demo-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px 12px;
+		margin-bottom: 6px;
+	}
+
+	.demo-title {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text);
+	}
+
+	.demo-mode {
+		margin-left: 6px;
+		font-weight: 400;
+		color: var(--muted);
+	}
+
+	.demo-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.demo-canvas {
+		display: block;
+		width: 100%;
+		height: var(--h);
+	}
+
+	.demo-caption {
+		min-height: 1.5em;
+		margin-top: 8px;
+		font-size: 0.8rem;
+		line-height: 1.5;
+		color: var(--muted);
+	}
+
+	/* 슬롯으로 들어오는 컨트롤과 수치 칸도 같은 모양을 쓰도록 :global로 연다 */
+	.demo :global(.demo-btn) {
+		padding: 4px 10px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition: color 0.15s, background-color 0.15s;
+	}
+
+	.demo :global(.demo-btn[aria-pressed='true']) {
+		background: var(--panel);
+		color: var(--text);
+		font-weight: 600;
+	}
+
+	.demo :global(.demo-btn:disabled) {
+		cursor: default;
+		opacity: 0.45;
+	}
+
+	.demo :global(.demo-btn:not(:disabled):hover) {
+		color: var(--text);
+	}
+
+	.demo :global(.demo-stats) {
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: minmax(0, 1fr);
+		gap: 8px;
+		margin: 10px 0 0;
+		padding: 10px 0 0;
+		border-top: 1px solid var(--border);
+	}
+
+	.demo :global(.demo-stats + .demo-stats) {
+		margin-top: 6px;
+		padding-top: 0;
+		border-top: none;
+	}
+
+	.demo :global(.demo-stats > div) {
+		margin: 0;
+		min-width: 0;
+	}
+
+	.demo :global(.demo-stats dt) {
+		margin: 0;
+		font-size: 0.7rem;
+		color: var(--muted);
+	}
+
+	.demo :global(.demo-stats dd) {
+		margin: 2px 0 0;
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	.demo :global(.demo-stats .is-blue dd) {
+		color: var(--chart-blue);
+	}
+
+	.demo :global(.demo-stats .is-accent dd) {
+		color: var(--accent);
+	}
+
+	@media (max-width: 640px) {
+		.demo {
+			padding: 12px 12px 10px;
+		}
+
+		.demo-canvas {
+			height: var(--h-m);
+		}
+
+		.demo :global(.demo-btn) {
+			min-height: 36px;
+			padding: 6px 12px;
+		}
+
+		.demo :global(.demo-stats dd) {
+			font-size: 0.75rem;
+		}
+	}
+</style>
