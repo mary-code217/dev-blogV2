@@ -118,11 +118,11 @@ public Loan loanBook(LoanBookCommand command) {
 }
 ```
 
-이 catch는 실행되지 않습니다. dirty checking은 메서드 본문에서 SQL을 내보내지 않고, 바뀐 내용을 모아뒀다가 커밋할 때 한꺼번에 flush합니다. `@Transactional`은 Spring AOP 프록시가 메서드를 감싸 트랜잭션을 열고 닫으므로, UPDATE는 메서드가 return한 뒤 프록시의 커밋에서 나갑니다. 예외도 그때 try 바깥에서 터집니다.
+이 catch는 실행되지 않습니다. dirty checking은 바뀐 내용을 바로 내보내지 않고 모아뒀다가 보통 커밋할 때 한꺼번에 flush합니다. `@Transactional`은 Spring AOP 프록시가 메서드를 감싸 트랜잭션을 열고 닫으므로, UPDATE는 메서드가 return한 뒤 프록시의 커밋에서 나갑니다. 예외도 그때 try 바깥에서 터집니다.
 
 <FlushTimingDemo />
 
-메서드 안에서 `em.flush()`를 부르면 UPDATE가 그 자리에서 나가니 catch가 실행되고, 도메인 예외로 바꿔 던질 수도 있습니다. 다만 [`OptimisticLockException`이 나면 현재 트랜잭션은 롤백 대상으로 표시됩니다](https://jakarta.ee/specifications/persistence/3.1/apidocs/jakarta.persistence/jakarta/persistence/optimisticlockexception). 잡고 이어서 진행할 수는 없고, 삼키고 정상 return하면 커밋 때 `UnexpectedRollbackException`이 납니다.
+메서드 안에서 `em.flush()`를 부르면 UPDATE가 그 자리에서 나가니 catch가 실행되고, 도메인 예외로 바꿔 던질 수도 있습니다. 다만 [`OptimisticLockException`이 나면 현재 트랜잭션은 롤백 대상으로 표시됩니다](https://jakarta.ee/specifications/persistence/3.1/apidocs/jakarta.persistence/jakarta/persistence/optimisticlockexception). 잡고 이어서 진행할 수는 없고, 삼키고 정상 return해도 커밋 단계에서 롤백되며 예외가 납니다.
 
 선택지는 셋이었습니다.
 
@@ -151,7 +151,7 @@ public ProblemDetail optimisticLockHandler(HttpServletRequest request) {
 }
 ```
 
-잡는 예외가 JPA 표준 `OptimisticLockException`이 아니라 Spring의 `ObjectOptimisticLockingFailureException`인 점이 중요합니다. Spring Data JPA 리포지토리를 거치면 JPA 예외가 Spring의 `DataAccessException` 계층으로 감싸져 올라옵니다. `EntityManager`를 직접 쓴다면 JPA 표준 예외가 올라올 수 있으니 둘 다 잡아두는 편이 안전합니다.
+잡는 예외가 JPA 표준 `OptimisticLockException`이 아니라 Spring의 `ObjectOptimisticLockingFailureException`인 점이 중요합니다. 커밋에서 난 예외는 `JpaTransactionManager`가 Spring의 `DataAccessException` 계층으로 바꿔 던집니다. `em.flush()`처럼 직접 부른 호출에서는 JPA 표준 예외가 그대로 올라올 수 있으니 둘 다 잡아두는 편이 안전합니다.
 
 409 Conflict는 동시성 충돌의 표준 코드입니다. ETag와 If-Match 같은 사전 조건 방식이라면 412 Precondition Failed를 쓰기도 합니다.
 

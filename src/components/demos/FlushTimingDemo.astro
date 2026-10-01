@@ -80,7 +80,7 @@ import DemoFrame from './DemoFrame.astro';
 		function fitFont(ctx: CanvasRenderingContext2D, text: string, maxW: number, size: number, family: string, weight = 400) {
 			let s = size;
 			ctx.font = `${weight} ${s}px ${family}`;
-			while (s > 8.5 && ctx.measureText(text).width > maxW) {
+			while (s > 7.5 && ctx.measureText(text).width > maxW) {
 				s -= 0.5;
 				ctx.font = `${weight} ${s}px ${family}`;
 			}
@@ -199,6 +199,9 @@ import DemoFrame from './DemoFrame.astro';
 				{ id: 'commit', x: box.proxy, text: flush ? '커밋 대신 롤백' : '커밋: 모아둔 변경을 flush', code: false },
 			];
 			const chipRight = W - box.inner - 8;
+			// 칩이 들어갈 자리를 먼저 재고 남은 폭에 코드를 맞춘다
+			ctx.font = `600 10px ${mono}`;
+			const chipW = Math.max(ctx.measureText('UPDATE 대기').width, ctx.measureText('UPDATE 0건').width) + 12;
 
 			for (const r of rows) {
 				const ry = rowY[r.id]!;
@@ -212,7 +215,8 @@ import DemoFrame from './DemoFrame.astro';
 				}
 				const reached = time >= (at(r.id) ?? Infinity);
 				ctx.fillStyle = isExec ? colors.accent : skipped(r.id) ? colors.faint : reached ? colors.text : colors.muted;
-				const maxW = chipRight - (r.x + 10) - 60;
+				const hasChip = r.id === 'update' || r.id === sc.execRow;
+				const maxW = chipRight - (hasChip ? chipW + 8 : 0) - (r.x + 10);
 				if (r.code) fitFont(ctx, r.text, maxW, 11, mono);
 				else fitFont(ctx, r.text, maxW, 11, font, 600);
 				ctx.textAlign = 'left';
@@ -281,7 +285,7 @@ import DemoFrame from './DemoFrame.astro';
 				caption = 'try 안에서 엔티티를 바꾸고 em.flush()를 부릅니다.';
 				if (executed) caption = 'UPDATE가 그 자리에서 나가 예외가 try 안에서 터집니다. 트랜잭션은 이 순간 rollback-only가 됩니다.';
 				if (caught) caption = 'catch가 실행되어 도메인 예외로 바꿔 던집니다.';
-				if (done) caption = '변환은 됐지만 트랜잭션은 롤백됩니다. catch에서 삼키고 return하면 커밋 때 UnexpectedRollbackException이 납니다.';
+				if (done) caption = '변환은 됐지만 트랜잭션은 롤백됩니다. catch에서 삼키고 return해도 커밋 단계에서 롤백되며 예외가 납니다.';
 			}
 			setText(captionEl, caption);
 		}
