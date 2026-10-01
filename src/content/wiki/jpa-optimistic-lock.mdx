@@ -63,7 +63,7 @@ public void updateBook(Book book) {
 }
 ```
 
-도메인 `Book`에는 version이 없으니 매퍼가 만든 엔티티의 version은 `null`입니다. ID는 있지만 영속성 컨텍스트가 추적하지 않는 이 상태를 detached(준영속)라고 부르고, detached 엔티티를 `save()`하면 내부에서 `merge()`가 호출됩니다.
+도메인 `Book`에는 version이 없으니 매퍼가 만든 엔티티의 version은 `null`입니다. ID는 있지만 영속성 컨텍스트가 추적하지 않는 이 상태를 detached(준영속)라고 부르고, detached 엔티티를 `save()`하면 내부에서 `merge()`가 호출됩니다. 다만 [Spring Data JPA는 `Long` version이 `null`이면 새 엔티티로 보고](https://docs.spring.io/spring-data/jpa/reference/3.5/jpa/entity-persistence.html) `persist()`를 부르므로, 이 코드 그대로라면 아래 merge 경로가 아니라 보통 에러로 끝납니다.
 
 `merge()`는 이렇게 동작합니다.
 
