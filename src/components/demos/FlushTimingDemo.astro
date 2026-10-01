@@ -1,0 +1,301 @@
+---
+// dirty checking의 UPDATE가 언제 나가는지에 따라 예외가 터지는 자리가 달라진다
+// flush 없음: UPDATE는 return 뒤 프록시의 커밋에서 나가므로 예외가 try 밖에서 터지고 catch는 실행되지 않는다
+// em.flush(): UPDATE가 try 안에서 나가 catch가 실행된다. 트랜잭션은 이미 rollback-only라 롤백된다
+// 코드는 jpa-optimistic-lock 위키 4절의 loanBook() 그대로다 (catch에서 도메인 예외로 바꿔 던짐)
+import DemoFrame from './DemoFrame.astro';
+---
+
+<DemoFrame
+	name="flush-timing"
+	title="예외는 어디서 터지는가"
+	description="loanBook()의 try 안에서 엔티티를 바꿔도 UPDATE는 바로 나가지 않습니다. 메서드가 return한 뒤 트랜잭션 프록시가 커밋할 때 UPDATE가 나가고, 0건이 갱신되어 OptimisticLockException이 try 밖에서 터집니다. catch는 실행되지 않고 호출자는 ObjectOptimisticLockingFailureException을 받습니다. try 안에서 em.flush()를 부르면 UPDATE가 그 자리에서 나가 catch가 실행되고 호출자는 BookNotAvailableException을 받습니다. 이때 트랜잭션은 이미 rollback-only로 표시되어 롤백됩니다."
+	height={268}
+	mobileHeight={268}
+>
+	<Fragment slot="controls">
+		<button type="button" class="demo-btn" data-toggle="flush" aria-pressed="false" disabled>em.flush()</button>
+	</Fragment>
+	<dl class="demo-stats">
+		<div class="is-accent" data-stat="where"><dt>예외가 터진 곳</dt><dd>-</dd></div>
+		<div data-stat="catch"><dt>catch</dt><dd>-</dd></div>
+		<div class="is-blue" data-stat="caller"><dt>호출자가 받는 예외</dt><dd>-</dd></div>
+	</dl>
+</DemoFrame>
+
+<style>
+	/* 수치가 아니라 짧은 한글 문구라 고정폭 글꼴을 쓰지 않는다 */
+	:global(.demo[data-demo="flush-timing"] dl.demo-stats dd) {
+		font-family: inherit;
+	}
+</style>
+
+<script>
+	import { clamp, easeInOut, easeOut, lerp, mountDemo, setText, type Frame } from './runtime';
+
+	type RowId = 'start' | 'update' | 'flush' | 'throw' | 'return' | 'commit';
+
+	type Scenario = {
+		/** 행이 활성화되는 시각. 없으면 건너뛰는 행 */
+		active: Partial<Record<RowId, number>>;
+		/** UPDATE가 실제로 나가는 행과 시각 */
+		execRow: RowId;
+		execAt: number;
+		catchAt: number | null;
+		callerAt: number;
+		done: number;
+	};
+
+	const QUEUE_AT = 900;
+	const MOVE = 350;
+
+	const SCENARIOS: Record<'lazy' | 'flush', Scenario> = {
+		lazy: {
+			active: { start: 0, update: 800, return: 1800, commit: 2700 },
+			execRow: 'commit',
+			execAt: 3000,
+			catchAt: null,
+			callerAt: 3800,
+			done: 4600,
+		},
+		flush: {
+			active: { start: 0, update: 800, flush: 1700, throw: 2700, commit: 3500 },
+			execRow: 'flush',
+			execAt: 2000,
+			catchAt: 2700,
+			callerAt: 4200,
+			done: 5000,
+		},
+	};
+
+	function setup(root: HTMLElement) {
+		const captionEl = root.querySelector('[data-caption]');
+		const modeEl = root.querySelector('[data-mode]');
+		const flushBtn = root.querySelector<HTMLButtonElement>('[data-toggle="flush"]')!;
+		const stat = (key: string) => root.querySelector(`[data-stat="${key}"] dd`);
+		const mono = getComputedStyle(root).getPropertyValue('--font-mono').trim() || 'monospace';
+		let flush = false;
+
+		// 넓이에 맞춰 글자 크기를 줄인다
+		function fitFont(ctx: CanvasRenderingContext2D, text: string, maxW: number, size: number, family: string, weight = 400) {
+			let s = size;
+			ctx.font = `${weight} ${s}px ${family}`;
+			while (s > 8.5 && ctx.measureText(text).width > maxW) {
+				s -= 0.5;
+				ctx.font = `${weight} ${s}px ${family}`;
+			}
+		}
+
+		function draw({ ctx, W, colors, font, time, done }: Frame) {
+			const sc = SCENARIOS[flush ? 'flush' : 'lazy'];
+			const rowH = 22;
+			const at = (id: RowId) => sc.active[id];
+			const isActive = (id: RowId) => {
+				const t = at(id);
+				if (t === undefined || time < t) return false;
+				const later = Object.values(sc.active).filter((v) => v! > t!);
+				return later.length === 0 ? true : time < Math.min(...(later as number[]));
+			};
+			const skipped = (id: RowId) => at(id) === undefined;
+			const executed = time >= sc.execAt;
+			const caught = sc.catchAt !== null && time >= sc.catchAt;
+
+			// 세로 배치
+			const box = { proxy: 4, method: 16, inner: 28 };
+			let y = 6;
+			const proxyTop = y;
+			y += 20;
+			const rowY: Partial<Record<RowId, number>> = {};
+			rowY.start = y + rowH / 2;
+			y += rowH + 2;
+			const methodTop = y;
+			y += 18;
+			const tryTop = y;
+			y += 16;
+			rowY.update = y + rowH / 2;
+			y += rowH;
+			rowY.flush = y + rowH / 2;
+			y += rowH + 4;
+			const tryBottom = y;
+			y += 6;
+			const catchTop = y;
+			y += 16;
+			rowY.throw = y + rowH / 2;
+			y += rowH + 4;
+			const catchBottom = y;
+			y += 4;
+			rowY.return = y + rowH / 2;
+			y += rowH + 2;
+			const methodBottom = y;
+			y += 2;
+			rowY.commit = y + rowH / 2;
+			y += rowH + 2;
+			const proxyBottom = y;
+			const callerY = y + 16;
+
+			const strokeBox = (x: number, top: number, bottom: number, color: string, dash: number[] = []) => {
+				ctx.strokeStyle = color;
+				ctx.lineWidth = 1;
+				ctx.setLineDash(dash);
+				ctx.beginPath();
+				ctx.roundRect(x + 0.5, top + 0.5, W - x * 2 - 1, bottom - top, 6);
+				ctx.stroke();
+				ctx.setLineDash([]);
+			};
+			const boxLabel = (text: string, x: number, top: number, color: string) => {
+				ctx.font = `600 10px ${font}`;
+				ctx.textAlign = 'left';
+				ctx.fillStyle = color;
+				ctx.fillText(text, x + 8, top + 10);
+			};
+
+			// 상자: 프록시 > loanBook() > try / catch
+			strokeBox(box.proxy, proxyTop, proxyBottom, colors.border);
+			boxLabel('트랜잭션 프록시 (@Transactional)', box.proxy, proxyTop, colors.muted);
+			strokeBox(box.method, methodTop, methodBottom, colors.border);
+			boxLabel('loanBook()', box.method, methodTop, colors.muted);
+
+			// try 영역: return에 도달하면 이미 빠져나온 것
+			const leftTry = !flush && time >= (at('return') ?? Infinity);
+			strokeBox(box.inner, tryTop, tryBottom, leftTry ? colors.faint : colors.muted, leftTry ? [3, 3] : []);
+			boxLabel(leftTry ? 'try (이미 빠져나옴)' : 'try', box.inner, tryTop, leftTry ? colors.faint : colors.muted);
+
+			const catchK = caught ? easeOut(clamp((time - sc.catchAt!) / 250)) : 0;
+			const catchColor = caught ? colors.blue : colors.faint;
+			strokeBox(box.inner, catchTop, catchBottom, catchColor, caught ? [] : [3, 3]);
+			if (caught) {
+				ctx.globalAlpha = 0.08 * catchK;
+				ctx.fillStyle = colors.blue;
+				ctx.beginPath();
+				ctx.roundRect(box.inner + 1, catchTop + 1, W - box.inner * 2 - 2, catchBottom - catchTop - 1, 6);
+				ctx.fill();
+				ctx.globalAlpha = 1;
+			}
+			const catchLabel = caught ? 'catch: 실행됨' : time >= sc.callerAt ? 'catch: 실행 안 됨' : 'catch (OptimisticLockException)';
+			boxLabel(catchLabel, box.inner, catchTop, catchColor);
+
+			// 트랜잭션 상태
+			let txState = '진행 중';
+			let txColor = colors.muted;
+			if (executed) {
+				txState = 'rollback-only';
+				txColor = colors.accent;
+			}
+			if (time >= sc.callerAt - 300) txState = '롤백됨';
+			if (time > 0) {
+				ctx.font = `600 10px ${font}`;
+				ctx.textAlign = 'right';
+				ctx.fillStyle = txColor;
+				ctx.fillText(txState, W - box.proxy - 8, proxyTop + 10);
+			}
+
+			// 행
+			const rows: { id: RowId; x: number; text: string; code: boolean }[] = [
+				{ id: 'start', x: box.proxy, text: '트랜잭션 시작', code: false },
+				{ id: 'update', x: box.inner, text: 'updateBook(book.checkout());', code: true },
+				{ id: 'flush', x: box.inner, text: flush ? 'em.flush();' : '// em.flush() 없음', code: true },
+				{ id: 'throw', x: box.inner, text: 'throw new BookNotAvailableException(…);', code: true },
+				{ id: 'return', x: box.method, text: 'return loan;', code: true },
+				{ id: 'commit', x: box.proxy, text: flush ? '커밋 대신 롤백' : '커밋: 모아둔 변경을 flush', code: false },
+			];
+			const chipRight = W - box.inner - 8;
+
+			for (const r of rows) {
+				const ry = rowY[r.id]!;
+				const active = isActive(r.id);
+				const isExec = r.id === sc.execRow && executed;
+				if (active || isExec) {
+					ctx.globalAlpha = isExec ? 0.12 : 1;
+					ctx.fillStyle = isExec ? colors.accent : colors.panel;
+					ctx.fillRect(r.x + 2, ry - rowH / 2 + 1, W - (r.x + 2) * 2, rowH - 2);
+					ctx.globalAlpha = 1;
+				}
+				const reached = time >= (at(r.id) ?? Infinity);
+				ctx.fillStyle = isExec ? colors.accent : skipped(r.id) ? colors.faint : reached ? colors.text : colors.muted;
+				const maxW = chipRight - (r.x + 10) - 60;
+				if (r.code) fitFont(ctx, r.text, maxW, 11, mono);
+				else fitFont(ctx, r.text, maxW, 11, font, 600);
+				ctx.textAlign = 'left';
+				ctx.fillText(r.text, r.x + 10, ry);
+			}
+
+			// UPDATE 칩: update 행에서 대기하다 실행되는 행으로 내려간다
+			if (time >= QUEUE_AT) {
+				const fromY = rowY.update!;
+				const toY = rowY[sc.execRow]!;
+				const moveStart = sc.execAt - MOVE;
+				const k = easeInOut(clamp((time - moveStart) / MOVE));
+				const cy = lerp(fromY, toY, k);
+				const label = executed ? 'UPDATE 0건' : 'UPDATE 대기';
+				ctx.font = `600 10px ${mono}`;
+				const cw = ctx.measureText(label).width + 12;
+				const cx = chipRight - cw;
+				ctx.globalAlpha = easeOut(clamp((time - QUEUE_AT) / 200));
+				ctx.fillStyle = executed ? colors.accent : colors.bg;
+				ctx.strokeStyle = executed ? colors.accent : colors.muted;
+				ctx.setLineDash(executed ? [] : [3, 2]);
+				ctx.beginPath();
+				ctx.roundRect(cx, cy - 8, cw, 16, 4);
+				ctx.fill();
+				ctx.stroke();
+				ctx.setLineDash([]);
+				ctx.fillStyle = executed ? colors.bg : colors.muted;
+				ctx.textAlign = 'center';
+				ctx.fillText(label, cx + cw / 2, cy + 0.5);
+				ctx.globalAlpha = 1;
+			}
+
+			// 호출자
+			if (time >= sc.callerAt) {
+				const k = easeOut(clamp((time - sc.callerAt) / 300));
+				const name = flush ? 'BookNotAvailableException' : 'ObjectOptimisticLockingFailureException';
+				const prefix = '호출자 ← ';
+				ctx.globalAlpha = k;
+				ctx.font = `600 11px ${font}`;
+				ctx.textAlign = 'left';
+				ctx.fillStyle = colors.muted;
+				ctx.fillText(prefix, box.proxy + 10, callerY);
+				const px = box.proxy + 10 + ctx.measureText(prefix).width;
+				fitFont(ctx, name, W - px - 8, 11, mono, 600);
+				ctx.fillStyle = flush ? colors.blue : colors.accent;
+				ctx.fillText(name, px, callerY);
+				ctx.globalAlpha = 1;
+			}
+
+			// 캔버스 밖 HTML
+			setText(stat('where'), executed ? (flush ? 'try 안 (flush)' : 'try 밖 (커밋)') : '-');
+			setText(stat('catch'), caught ? '실행됨' : time >= sc.callerAt ? '실행 안 됨' : '-');
+			setText(stat('caller'), time >= sc.callerAt ? (flush ? '도메인 예외' : 'Spring 예외') : '-');
+			setText(modeEl, flush ? 'try 안에서 em.flush() 호출' : 'flush 없음');
+
+			if (flushBtn.disabled === done) flushBtn.disabled = !done;
+			flushBtn.setAttribute('aria-pressed', String(flush));
+
+			let caption: string;
+			if (!flush) {
+				caption = 'try 안에서 엔티티를 바꿔도 UPDATE는 나가지 않고 대기합니다.';
+				if (time >= (at('return') ?? Infinity)) caption = '메서드가 return하며 try 영역을 빠져나옵니다. UPDATE는 아직 나가지 않았습니다.';
+				if (executed) caption = '프록시가 커밋하며 모아둔 UPDATE를 내보냅니다. 0건이 갱신되어 예외가 try 밖에서 터집니다.';
+				if (done) caption = 'catch는 한 번도 실행되지 않았습니다. 호출자는 Spring이 감싼 ObjectOptimisticLockingFailureException을 받습니다.';
+			} else {
+				caption = 'try 안에서 엔티티를 바꾸고 em.flush()를 부릅니다.';
+				if (executed) caption = 'UPDATE가 그 자리에서 나가 예외가 try 안에서 터집니다. 트랜잭션은 이 순간 rollback-only가 됩니다.';
+				if (caught) caption = 'catch가 실행되어 도메인 예외로 바꿔 던집니다.';
+				if (done) caption = '변환은 됐지만 트랜잭션은 롤백됩니다. catch에서 삼키고 return하면 커밋 때 UnexpectedRollbackException이 납니다.';
+			}
+			setText(captionEl, caption);
+		}
+
+		const demo = mountDemo(root, {
+			duration: Math.max(SCENARIOS.lazy.done, SCENARIOS.flush.done),
+			draw,
+		});
+
+		flushBtn.addEventListener('click', () => {
+			flush = !flush;
+			demo.play();
+		});
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-demo="flush-timing"]').forEach(setup);
+</script>

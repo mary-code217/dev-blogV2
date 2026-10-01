@@ -6,6 +6,7 @@ category: "JPA"
 tags: ["JPA", "Hibernate", "Spring", "Concurrency", "Transaction"]
 ---
 
+import FlushTimingDemo from '../../components/demos/FlushTimingDemo.astro';
 import LatchRaceDemo from '../../components/demos/LatchRaceDemo.astro';
 
 > 이 글의 코드는 **Java 21, Spring Boot 3.5, Hibernate 6.x** 기준입니다.
@@ -117,25 +118,19 @@ public Loan loanBook(LoanBookCommand command) {
 }
 ```
 
-이 catch는 실행되지 않습니다. dirty checking은 메서드 본문에서 SQL을 내보내지 않기 때문입니다. 변경은 메모리에 쌓여 있다가 커밋할 때 한꺼번에 flush됩니다.
+이 catch는 실행되지 않습니다. dirty checking은 메서드 본문에서 SQL을 내보내지 않고, 바뀐 내용을 모아뒀다가 커밋할 때 한꺼번에 flush합니다. `@Transactional`은 Spring AOP 프록시가 메서드를 감싸 트랜잭션을 열고 닫으므로, UPDATE는 메서드가 return한 뒤 프록시의 커밋에서 나갑니다. 예외도 그때 try 바깥에서 터집니다.
 
-```
-[프록시] 트랜잭션 시작
-  → loanBook() 실행: 엔티티만 바뀌고 SQL은 안 나감
-  → loanBook() 정상 return (try-catch 영역을 이미 빠져나옴)
-[프록시] 커밋: 여기서 UPDATE → OptimisticLockException
-```
+<FlushTimingDemo />
 
-`@Transactional`은 Spring AOP 프록시가 메서드를 감싸 트랜잭션을 열고 닫습니다. 예외는 메서드가 끝난 뒤 프록시의 커밋에서 터집니다.
+메서드 안에서 `em.flush()`를 부르면 UPDATE가 그 자리에서 나가니 catch가 실행되고, 도메인 예외로 바꿔 던질 수도 있습니다. 다만 [`OptimisticLockException`이 나면 현재 트랜잭션은 롤백 대상으로 표시됩니다](https://jakarta.ee/specifications/persistence/3.1/apidocs/jakarta.persistence/jakarta/persistence/optimisticlockexception). 잡고 이어서 진행할 수는 없고, 삼키고 정상 return하면 커밋 때 `UnexpectedRollbackException`이 납니다.
 
-메서드 안에서 `em.flush()`를 직접 부르면 예외가 그 자리에서 터지니 잡을 수는 있습니다. 하지만 Spring은 트랜잭션 안에서 런타임 예외가 던져지는 순간 트랜잭션을 rollback-only로 표시합니다. 잡고 정상 return해도 프록시가 커밋하다 이 표시를 보고 `UnexpectedRollbackException`을 던집니다. 같은 트랜잭션 안에서 잡아서는 트랜잭션을 살릴 수 없습니다.
+선택지는 셋이었습니다.
 
-잡을 수 있는 자리는 둘이었습니다.
-
+- 서비스에서 `em.flush()` 후 바꿔 던지기: 되지만 서비스가 flush 시점을 직접 챙겨야 함
 - `REQUIRES_NEW`로 새 트랜잭션을 열고 그 바깥에서 잡기: 되지만 구조가 복잡해짐
 - 컨트롤러까지 올라온 예외를 `@RestControllerAdvice`에서 바꾸기: 가장 단순
 
-두 번째를 골랐습니다.
+서비스가 영속성 계층의 flush 시점까지 알아야 할 이유는 없다고 보고 세 번째를 골랐습니다.
 
 ## 5. 예외 변환은 `@RestControllerAdvice`에서 409로
 
