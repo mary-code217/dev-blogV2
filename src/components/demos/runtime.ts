@@ -169,7 +169,9 @@ export function mountDemo(root: HTMLElement, opts: Options) {
 		}
 		playing = true;
 		playStart = performance.now();
+		time = 0;
 		updateButton();
+		render();
 		kick();
 	}
 
@@ -211,5 +213,6 @@ export function mountDemo(root: HTMLElement, opts: Options) {
 		else play();
 	});
 
-	return { render, kick, reduceMotion };
+	// 토글이 시나리오를 바꿔 처음부터 다시 보여줄 때 쓴다
+	return { render, kick, play, reduceMotion };
 }

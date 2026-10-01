@@ -1,0 +1,306 @@
+---
+// 낙관적 락 동시성 테스트: 출발선(CountDownLatch) 유무에 따라 어느 방어선에서 막히는지 비교
+// 출발선 없음: 스레드가 엇갈려 출발해 첫 커밋 뒤에 조회한 9개가 비즈니스 가드에서 막힌다 → 락 충돌 0건
+// 출발선 통일: 10개가 모두 첫 커밋 전에 version 0을 읽은 경우. 가드를 통과한 뒤 커밋에서 부딪친다 → 201 1건, 409 9건
+// latch는 이 상황이 나올 확률을 높일 뿐 보장하지는 않는다
+// 시간축은 순서를 보이기 위한 배치이고 실제 ms가 아니다
+import DemoFrame from './DemoFrame.astro';
+---
+
+<DemoFrame
+	name="latch-race"
+	title="같은 책에 대출 요청 10개"
+	description="스레드 10개가 같은 책을 대출합니다. 출발선 없이 엇갈려 출발하면 첫 스레드가 커밋해 version이 0에서 1, 상태가 ON_LOAN이 되고, 나머지 9개는 조회 시점에 이미 ON_LOAN을 보고 비즈니스 가드에서 막힙니다. OptimisticLockException은 한 번도 나지 않습니다. CountDownLatch로 출발선을 통일해 10개 모두 첫 커밋 전에 version 0을 읽으면, 모두 가드를 통과한 뒤 커밋에서 부딪쳐 1건만 201이고 9건은 409입니다. latch는 이런 충돌이 나올 확률을 높일 뿐 보장하지는 않습니다."
+	height={300}
+	mobileHeight={280}
+>
+	<Fragment slot="controls">
+		<button type="button" class="demo-btn" data-toggle="latch" aria-pressed="false" disabled>CountDownLatch</button>
+	</Fragment>
+	<dl class="demo-stats">
+		<div class="is-blue" data-stat="ok"><dt>201 성공</dt><dd>-</dd></div>
+		<div class="is-accent" data-stat="conflict"><dt>409 락 충돌</dt><dd>-</dd></div>
+		<div data-stat="guard"><dt>가드 차단</dt><dd>-</dd></div>
+		<div data-stat="version"><dt>최종 version</dt><dd>-</dd></div>
+	</dl>
+</DemoFrame>
+
+<script>
+	import { clamp, easeOut, easeOutBack, mountDemo, setText, type Frame } from './runtime';
+
+	const N = 10;
+	// 조회 뒤 가드 판정, 커밋까지 걸리는 시간(시뮬레이션 단위)
+	const GUARD = 20;
+	const COMMIT = 45;
+	const SIM_END = 540;
+
+	// 출발선 없음: 앞 스레드가 커밋한 뒤에 다음 스레드가 조회한다
+	const STAGGER = 55;
+	// 출발선 통일: await에 도착하는 시각은 엇갈려도 countDown() 순간 함께 출발한다
+	const ARRIVE_GAP = 28;
+	const RELEASE = 300;
+	const JITTER = [6, 3, 9, 0, 7, 2, 8, 4, 1, 5];
+
+	// 타임라인(ms)
+	const SWEEP = 4600;
+	const DONE = SWEEP + 500;
+
+	type Outcome = 'ok' | 'conflict' | 'guard';
+	type Thread = {
+		arrive: number;
+		load: number;
+		end: number;
+		readVersion: number;
+		readOnLoan: boolean;
+		outcome: Outcome;
+	};
+
+	// 조회는 그 순간 커밋된 값을 읽고, 가드를 통과한 스레드만 커밋에서 version을 비교한다
+	function simulate(loads: number[], arrives: number[]) {
+		type Ev = { t: number; i: number; kind: 'load' | 'commit' };
+		const evs: Ev[] = loads.flatMap((t, i) => [
+			{ t, i, kind: 'load' as const },
+			{ t: t + COMMIT, i, kind: 'commit' as const },
+		]);
+		evs.sort((a, b) => a.t - b.t || (a.kind === 'load' ? -1 : 1));
+
+		let version = 0;
+		let onLoan = false;
+		let commitAt = 0;
+		const threads: Thread[] = loads.map((load, i) => ({
+			arrive: arrives[i],
+			load,
+			end: load + GUARD,
+			readVersion: 0,
+			readOnLoan: false,
+			outcome: 'guard',
+		}));
+		for (const ev of evs) {
+			const th = threads[ev.i];
+			if (ev.kind === 'load') {
+				th.readVersion = version;
+				th.readOnLoan = onLoan;
+				continue;
+			}
+			if (th.readOnLoan) continue;
+			th.end = ev.t;
+			if (th.readVersion === version) {
+				th.outcome = 'ok';
+				version++;
+				onLoan = true;
+				commitAt = ev.t;
+			} else {
+				th.outcome = 'conflict';
+			}
+		}
+		return { threads, commitAt };
+	}
+
+	const idx = Array.from({ length: N }, (_, i) => i);
+	const noLatch = simulate(
+		idx.map((i) => i * STAGGER),
+		idx.map((i) => i * STAGGER),
+	);
+	const withLatch = simulate(
+		idx.map((i) => RELEASE + JITTER[i]),
+		idx.map((i) => i * ARRIVE_GAP),
+	);
+
+	const OUTCOME_LABEL: Record<Outcome, string> = { ok: '201', conflict: '409', guard: '가드 차단' };
+
+	function setup(root: HTMLElement) {
+		const captionEl = root.querySelector('[data-caption]');
+		const modeEl = root.querySelector('[data-mode]');
+		const latchBtn = root.querySelector<HTMLButtonElement>('[data-toggle="latch"]')!;
+		const stat = (key: string) => root.querySelector(`[data-stat="${key}"] dd`);
+		let latch = false;
+
+		function draw({ ctx, W, H, colors, font, time, done }: Frame) {
+			const { threads, commitAt } = latch ? withLatch : noLatch;
+			const pad = { l: 30, r: 12, t: 42, b: 22 };
+			const pw = W - pad.l - pad.r;
+			const rowH = (H - pad.t - pad.b) / N;
+			const barH = Math.min(12, rowH * 0.55);
+			const xOf = (t: number) => pad.l + (t / SIM_END) * pw;
+			const yOf = (i: number) => pad.t + (i + 0.5) * rowH;
+			const sim = clamp(time / SWEEP) * SIM_END;
+			const committed = sim >= commitAt;
+			const winner = threads.findIndex((th) => th.outcome === 'ok');
+			const outcomeColor = (o: Outcome) => (o === 'ok' ? colors.blue : o === 'conflict' ? colors.accent : colors.muted);
+
+			// 책 row 상태
+			ctx.font = `600 11px ${font}`;
+			ctx.textAlign = 'left';
+			ctx.fillStyle = colors.text;
+			ctx.fillText(committed ? '책 row: version 1 · ON_LOAN' : '책 row: version 0 · AVAILABLE', pad.l, 12);
+
+			// countDown() 순간
+			if (latch) {
+				const k = easeOut(clamp((sim - RELEASE) / 30));
+				const x = Math.round(xOf(RELEASE)) + 0.5;
+				ctx.globalAlpha = 0.4 + 0.6 * k;
+				ctx.strokeStyle = colors.faint;
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(x, pad.t - 6);
+				ctx.lineTo(x, H - pad.b);
+				ctx.stroke();
+				ctx.font = `400 10.5px ${font}`;
+				ctx.textAlign = 'right';
+				ctx.fillStyle = colors.muted;
+				ctx.fillText('countDown()', x - 4, H - pad.b / 2 + 2);
+				ctx.globalAlpha = 1;
+			} else {
+				ctx.font = `400 10.5px ${font}`;
+				ctx.textAlign = 'right';
+				ctx.fillStyle = colors.muted;
+				ctx.fillText('시간 →', W - pad.r, H - pad.b / 2 + 2);
+			}
+
+			// 첫 커밋 순간. 이 선보다 앞에서 조회했느냐 뒤에서 조회했느냐로 결과가 갈린다
+			const commitK = easeOut(clamp((sim - commitAt) / 40));
+			if (commitK > 0) {
+				const x = Math.round(xOf(commitAt)) + 0.5;
+				ctx.globalAlpha = commitK;
+				ctx.strokeStyle = colors.blue;
+				ctx.setLineDash([3, 3]);
+				ctx.beginPath();
+				ctx.moveTo(x, pad.t - 8);
+				ctx.lineTo(x, H - pad.b);
+				ctx.stroke();
+				ctx.setLineDash([]);
+				const label = `T${winner + 1} 커밋: version 0 → 1`;
+				ctx.font = `600 10.5px ${font}`;
+				ctx.fillStyle = colors.blue;
+				const fits = x + 4 + ctx.measureText(label).width <= W - pad.r;
+				ctx.textAlign = fits ? 'left' : 'right';
+				ctx.fillText(label, fits ? x + 4 : x - 4, pad.t - 14);
+				ctx.globalAlpha = 1;
+			}
+
+			threads.forEach((th, i) => {
+				const y = yOf(i);
+
+				ctx.font = `400 10.5px ${font}`;
+				ctx.textAlign = 'right';
+				ctx.fillStyle = colors.muted;
+				ctx.fillText(`T${i + 1}`, pad.l - 8, y);
+
+				// await에서 기다리는 구간
+				if (th.arrive < th.load && sim >= th.arrive) {
+					const x0 = xOf(th.arrive);
+					ctx.strokeStyle = colors.faint;
+					ctx.lineWidth = 1;
+					ctx.setLineDash([2, 3]);
+					ctx.beginPath();
+					ctx.moveTo(x0, y);
+					ctx.lineTo(xOf(Math.min(sim, th.load)), y);
+					ctx.stroke();
+					ctx.setLineDash([]);
+					ctx.fillStyle = colors.faint;
+					ctx.beginPath();
+					ctx.arc(x0, y, 2.5 * Math.max(0, easeOutBack(clamp((sim - th.arrive) / 20))), 0, Math.PI * 2);
+					ctx.fill();
+				}
+
+				if (sim < th.load) return;
+
+				// 트랜잭션: 조회부터 가드 차단 또는 커밋까지
+				const finished = sim >= th.end;
+				const x0 = xOf(th.load);
+				const x1 = xOf(Math.min(sim, th.end));
+				const color = finished ? outcomeColor(th.outcome) : colors.faint;
+				ctx.fillStyle = color;
+				ctx.globalAlpha = finished && th.outcome === 'guard' ? 0.45 : finished ? 0.85 : 0.6;
+				ctx.beginPath();
+				ctx.roundRect(x0, y - barH / 2, Math.max(2, x1 - x0), barH, 3);
+				ctx.fill();
+				ctx.globalAlpha = 1;
+
+				// 조회한 version. 막대가 좁으면 생략한다
+				const tag = `v${th.readVersion}`;
+				ctx.font = `600 9.5px ${font}`;
+				if (x1 - x0 >= ctx.measureText(tag).width + 8) {
+					ctx.textAlign = 'left';
+					ctx.fillStyle = colors.bg;
+					ctx.fillText(tag, x0 + 4, y + 0.5);
+				}
+
+				if (!finished) return;
+				const k = easeOut(clamp((sim - th.end) / 30));
+				ctx.globalAlpha = k;
+				ctx.font = `600 10.5px ${font}`;
+				ctx.fillStyle = outcomeColor(th.outcome);
+				// 막대 오른쪽, 왼쪽 순으로 자리를 찾고, 양쪽 다 좁으면 괄호를 뗀 짧은 라벨로 다시 찾는다
+				const short = OUTCOME_LABEL[th.outcome];
+				const labels = th.outcome === 'guard' ? [`${short} (ON_LOAN)`, short] : [short];
+				const xEnd = xOf(th.end);
+				let placed = false;
+				for (const label of labels) {
+					const lw = ctx.measureText(label).width;
+					if (xEnd + 6 + lw <= W - pad.r) {
+						ctx.textAlign = 'left';
+						ctx.fillText(label, xEnd + 6, y);
+					} else if (x0 - 6 - lw >= pad.l) {
+						ctx.textAlign = 'right';
+						ctx.fillText(label, x0 - 6, y);
+					} else continue;
+					placed = true;
+					break;
+				}
+				if (!placed) {
+					ctx.textAlign = 'right';
+					ctx.fillText(short, W - pad.r, y);
+				}
+				ctx.globalAlpha = 1;
+			});
+
+			// 재생 위치
+			if (time < SWEEP) {
+				const x = Math.round(xOf(sim)) + 0.5;
+				ctx.strokeStyle = colors.faint;
+				ctx.lineWidth = 1;
+				ctx.beginPath();
+				ctx.moveTo(x, pad.t - 4);
+				ctx.lineTo(x, H - pad.b);
+				ctx.stroke();
+			}
+
+			// 캔버스 밖 HTML
+			const ended = threads.filter((th) => sim >= th.end);
+			const count = (o: Outcome) => ended.filter((th) => th.outcome === o).length;
+			const started = time > 0;
+			setText(stat('ok'), started ? `${count('ok')}건` : '-');
+			setText(stat('conflict'), started ? `${count('conflict')}건` : '-');
+			setText(stat('guard'), started ? `${count('guard')}건` : '-');
+			setText(stat('version'), started ? String(committed ? 1 : 0) : '-');
+			setText(modeEl, latch ? 'CountDownLatch로 출발선 통일' : '출발선 없음');
+
+			if (latchBtn.disabled === done) latchBtn.disabled = !done;
+			latchBtn.setAttribute('aria-pressed', String(latch));
+
+			let caption: string;
+			if (!latch) {
+				caption = 'executor.submit()으로 10개를 던졌지만 스레드는 조금씩 엇갈려 출발합니다. 막대 안의 v0, v1은 조회한 version입니다.';
+				if (committed) caption = 'T1이 먼저 커밋해 version이 1, 상태가 ON_LOAN이 됐습니다. 뒤에 출발한 스레드는 이 값을 읽습니다.';
+				if (sim >= threads[2].end) caption = '나머지는 조회 시점에 이미 ON_LOAN을 보고 비즈니스 가드에서 막힙니다. 커밋까지 가지 않으니 version을 비교할 일도 없습니다.';
+				if (done) caption = '테스트는 끝났지만 OptimisticLockException은 한 번도 나지 않았습니다. 낙관적 락이 동작하는지는 검증되지 않았습니다.';
+			} else {
+				caption = '스레드는 startLatch.await()에 도착하는 대로 멈춰 기다립니다.';
+				if (sim >= RELEASE) caption = 'countDown() 한 번에 10개가 거의 함께 출발합니다. 이 예시에서는 모두 첫 커밋 전에 version 0, AVAILABLE을 읽어 가드를 통과합니다.';
+				if (committed) caption = `가장 먼저 커밋한 T${winner + 1}가 version을 1로 올립니다. 나머지의 UPDATE ... WHERE version = 0은 0건이 됩니다.`;
+				if (done) caption = '1건만 201이고 9건은 커밋 시점 충돌로 409입니다. 가드가 아니라 낙관적 락이 막았다는 것이 이제야 확인됩니다.';
+			}
+			setText(captionEl, caption);
+		}
+
+		const demo = mountDemo(root, { duration: DONE, draw });
+
+		latchBtn.addEventListener('click', () => {
+			latch = !latch;
+			demo.play();
+		});
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-demo="latch-race"]').forEach(setup);
+</script>
