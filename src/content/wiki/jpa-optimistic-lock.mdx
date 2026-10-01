@@ -1,6 +1,6 @@
 ---
 title: "JPA 낙관적 락이 새는 3가지 지점"
-description: "@Version 한 줄로는 끝나지 않습니다. 락이 우회되는 함정, 트랜잭션 안에서 예외를 못 잡는 이유, 진짜 동작을 검증하는 동시성 테스트 패턴까지 정리합니다."
+description: "@Version 한 줄로는 끝나지 않습니다. 저장 방식 때문에 락이 동작하지 않는 함정, 트랜잭션 안에서 예외를 못 잡는 이유, 진짜 동작을 검증하는 동시성 테스트 패턴까지 정리합니다."
 date: 2026-05-22
 category: "JPA"
 tags: ["JPA", "Hibernate", "Spring", "Concurrency", "Transaction"]
@@ -53,9 +53,9 @@ WHERE id = ? AND version = ?
 
 다른 트랜잭션이 먼저 커밋해 version이 올라갔다면 이 UPDATE는 0건을 갱신합니다. Hibernate는 flush 시점에 갱신된 row 수를 보고 `OptimisticLockException`을 던집니다. 낙관적 락의 실체는 이 `AND version = ?` 하나입니다.
 
-## 3. 함정 ① - `@Version`을 붙였는데 충돌이 검출되지 않았다
+## 3. 함정 ① - 매퍼로 새로 만든 엔티티를 `save()`하면 version이 사라진다
 
-영속성 어댑터의 `updateBook()`은 매퍼로 새 엔티티를 만들어 `save()`하고 있었습니다.
+영속성 어댑터의 `updateBook()`을 매퍼로 새 엔티티를 만들어 `save()`하도록 짜면 이렇습니다.
 
 ```java
 public void updateBook(Book book) {
@@ -63,17 +63,9 @@ public void updateBook(Book book) {
 }
 ```
 
-도메인 `Book`에는 version이 없으니 매퍼가 만든 엔티티의 version은 `null`입니다. ID는 있지만 영속성 컨텍스트가 추적하지 않는 이 상태를 detached(준영속)라고 부르고, detached 엔티티를 `save()`하면 내부에서 `merge()`가 호출됩니다. 다만 [Spring Data JPA는 `Long` version이 `null`이면 새 엔티티로 보고](https://docs.spring.io/spring-data/jpa/reference/3.5/jpa/entity-persistence.html) `persist()`를 부르므로, 이 코드 그대로라면 아래 merge 경로가 아니라 보통 에러로 끝납니다.
+도메인 `Book`에는 version이 없으니 매퍼가 만든 엔티티의 version은 `null`입니다. [Spring Data JPA의 `save()`는 version 필드가 `Long` 같은 래퍼 타입이면 그 값이 `null`인지로 새 엔티티를 판단합니다](https://docs.spring.io/spring-data/jpa/reference/3.5/jpa/entity-persistence.html). id가 채워져 있어도 version이 `null`이면 새 엔티티로 보고 `persist()`를 부릅니다. 그런데 id가 이미 있는 엔티티라 Hibernate는 새로 저장하지 못하고 에러가 납니다. 동시 요청이 없어도 대출 한 번에 바로 실패합니다.
 
-`merge()`는 이렇게 동작합니다.
-
-1. 같은 ID의 row를 DB에서 읽어 managed(영속성 컨텍스트가 추적하는) 엔티티를 만든다
-2. 그 엔티티의 필드를 detached 엔티티의 값으로 덮어쓴다
-3. 커밋할 때 바뀐 필드로 UPDATE한다
-
-문제는 1번에서 version을 **DB의 최신 값으로 새로 읽는다**는 점입니다. 내가 처음 조회했을 때 본 version은 어디에도 남지 않습니다. 그래서 UPDATE의 `WHERE version = ?`에는 항상 최신 version이 들어가고, 다른 트랜잭션이 먼저 커밋했어도 충돌이 검출되지 않습니다. 마지막에 쓴 쪽이 이기고, 앞의 변경은 사라집니다(lost update). Hibernate 버전이나 매핑에 따라서는 `null` version 때문에 `PropertyValueException`이 먼저 터지기도 합니다.
-
-락이 우회된다기보다 충돌을 검출할 기회 자체가 없어지는 것입니다.
+이 방식으로는 조회한 version이 UPDATE까지 이어지지 않습니다. 락이 동작할 기회 자체가 없습니다.
 
 ### Dirty Checking으로 바꾸자 조회 시점의 version이 살아남았다
 
@@ -86,7 +78,7 @@ public void updateBook(Book book) {
 }
 ```
 
-`findById`로 가져온 엔티티는 managed 상태이고, 조회한 순간의 version을 그대로 들고 있습니다. 상태만 바꾸면 커밋 때 JPA가 바뀐 필드를 찾아(dirty checking) UPDATE를 만듭니다. `save()`는 필요 없습니다.
+`findById`로 가져온 엔티티는 managed(영속성 컨텍스트가 추적하는) 상태이고, 조회한 순간의 version을 그대로 들고 있습니다. 상태만 바꾸면 커밋 때 JPA가 바뀐 필드를 찾아(dirty checking) UPDATE를 만듭니다. `save()`는 필요 없습니다.
 
 ```sql
 -- updateBook() 호출 시
@@ -253,6 +245,6 @@ public Loan loanBook(LoanBookCommand command) { ... }
 
 `@Version`은 UPDATE에 조건 하나를 붙일 뿐이고, 그 조건이 의미를 가지려면 주변이 맞아야 했습니다.
 
-- 저장: 매퍼로 만든 새 엔티티를 `save()`하면 version이 최신 값으로 바뀌어 충돌을 못 잡음 → dirty checking
+- 저장: 매퍼로 만든 새 엔티티는 version이 `null`이라 `save()`가 `persist()`로 가서 에러 → dirty checking
 - 예외: 커밋 때 터지는 예외는 서비스 메서드 안에서 못 잡음 → `@RestControllerAdvice`에서 409
 - 검증: 엇갈려 출발한 요청은 가드에서 막혀 락까지 오지 않음 → `CountDownLatch`로 출발선 맞추기
