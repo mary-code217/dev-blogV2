@@ -1,6 +1,7 @@
 # build output
 dist/
 .sites-private/
+.analytics-local/
 # generated types
 .astro/
 

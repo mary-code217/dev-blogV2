@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="dashboard-token" content="__DASHBOARD_TOKEN__">
+  <title>MaryDev · Analytics</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">MaryDev<span>기록이 닿는 곳</span></a>
+      <div class="nav-label">MY WORKSPACE</div>
+      <button class="nav-item active" id="overview-button"><span aria-hidden="true">◫</span> 방문 통계</button>
+      <button class="nav-item" id="settings-button"><span aria-hidden="true">⚙</span> GA 연결 설정</button>
+      <a class="nav-item" href="https://marydev.me" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span> 블로그 열기</a>
+      <div class="sidebar-bottom">
+        <div class="local-note"><span class="status-dot"></span> 내 PC에서만 실행 중</div>
+        <p>통계와 인증 키는 GitHub Pages에<br>배포되지 않습니다.</p>
+        <button class="theme-toggle" id="theme-button">테마 변경</button>
+      </div>
+    </aside>
+    <main>
+      <header class="page-header">
+        <div><p class="eyebrow">MARYDEV / ANALYTICS</p><h1>내 글을 만나는 사람들</h1><p class="subtitle">어떤 기록을 읽고, 어디에서 찾아오는지.</p></div>
+        <div class="header-actions"><span class="connection" id="connection-status">연결 확인 중</span><button id="mobile-settings-button" class="button secondary mobile-settings">연결 설정</button><button id="refresh-button" class="button secondary">↻ 새로고침</button></div>
+      </header>
+      <section id="setup-panel" class="setup" hidden aria-labelledby="setup-title">
+        <div class="section-heading"><div><p class="eyebrow">GOOGLE ANALYTICS</p><h2 id="setup-title">통계를 읽을 권한 연결하기</h2></div><button class="button secondary" id="close-setup">닫기</button></div>
+        <p>GA 방문 데이터는 이미 수집 중입니다. 아래 연결은 데이터를 읽기 위한 설정이며, 한 번만 하면 됩니다.</p>
+        <ol class="setup-steps">
+          <li><a href="https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com" target="_blank" rel="noopener noreferrer">Google Cloud 프로젝트</a>를 선택하거나 만들고 <strong>Google Analytics Data API</strong>를 활성화합니다. 속성 자동 찾기를 사용하려면 <a href="https://console.cloud.google.com/apis/library/analyticsadmin.googleapis.com" target="_blank" rel="noopener noreferrer">Admin API</a>도 활성화합니다.</li>
+          <li><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer">서비스 계정</a>을 만들고 계정의 <strong>키 → 키 추가 → 새 키 만들기 → JSON</strong>에서 키 파일을 내려받습니다. 프로젝트 역할은 부여하지 않아도 됩니다.</li>
+          <li><a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer">GA 관리 → 속성 액세스 관리</a>에서 서비스 계정 이메일을 <strong>뷰어</strong>로 추가합니다.</li>
+          <li>아래에서 JSON 파일을 선택하고 연결합니다. 키는 이 PC에만 저장되고 화면이나 공개 저장소에 노출되지 않습니다.</li>
+        </ol>
+        <form id="settings-form">
+          <div class="setup-fields"><label>GA4 속성 ID<input id="property-id" inputmode="numeric" pattern="[0-9]*" placeholder="자동 찾기 또는 숫자 ID" autocomplete="off"><span class="help">측정 ID: G-GBDJN2XP74 · 비워 두면 읽기 권한이 있는 속성에서 찾습니다.</span></label>
+          <label>Google 인증 JSON 파일<input id="credentials-file" type="file" accept=".json,application/json"><span class="help" id="credential-help">기존 인증 파일이 있다면 다시 선택하지 않아도 됩니다.</span></label></div>
+          <div class="setup-actions"><button class="button primary" type="submit" id="connect-button">저장하고 연결</button><button class="button secondary" type="button" id="demo-button">샘플 화면 보기</button><span class="help">인증 키는 채팅에 보내지 마세요.</span></div>
+        </form>
+        <p id="setup-message" role="status" aria-live="polite"></p>
+      </section>
+      <div class="notice" id="demo-notice" hidden><div><strong>샘플 데이터로 보는 화면</strong><span>실제 글 제목에 예시 수치를 넣었습니다. GA 통계가 아닙니다.</span></div><button class="button secondary" id="live-button">실제 데이터 연결</button></div>
+      <div class="error-notice" id="error-notice" role="alert" hidden></div>
+      <div class="toolbar"><div class="period-buttons" role="group" aria-label="조회 기간"><button class="period" data-days="7" aria-pressed="false">최근 7일</button><button class="period" data-days="30" aria-pressed="true">최근 30일</button><button class="period" data-days="90" aria-pressed="false">최근 90일</button></div><span class="help" id="date-label">어제까지의 완료된 날짜를 비교합니다.</span></div>
+      <div id="empty-state" class="empty-state"><div class="empty-mark" aria-hidden="true">◌</div><h2>방문 통계를 연결해 주세요</h2><p>GA 읽기 권한을 연결하면 이곳에 통계가 나타납니다.<br>화면 구성은 샘플 데이터로 먼저 볼 수 있습니다.</p><button class="button primary" id="empty-setup-button">연결 설정 열기</button></div>
+      <div id="dashboard" hidden aria-busy="false">
+        <section class="metrics" aria-label="사이트 전체 요약">
+          <article class="metric"><span class="metric-label">전체 조회수</span><strong id="views-value">—</strong><span class="delta" id="views-delta"></span></article>
+          <article class="metric"><span class="metric-label">활성 사용자</span><strong id="users-value">—</strong><span class="delta" id="users-delta"></span></article>
+          <article class="metric"><span class="metric-label">방문 세션</span><strong id="sessions-value">—</strong><span class="delta" id="sessions-delta"></span></article>
+          <article class="metric"><span class="metric-label">참여율</span><strong id="engagement-value">—</strong><span class="delta" id="engagement-delta"></span></article>
+        </section>
+        <section class="trend-section" aria-labelledby="trend-title"><div class="section-heading"><div><h2 id="trend-title">방문 추이</h2><p class="help">일별 조회수 · 반복 조회 포함</p></div><span class="chart-legend"><span></span> 조회수</span></div><div id="trend-chart" class="trend-chart"></div></section>
+        <div class="detail-grid">
+          <section class="posts-section" aria-labelledby="posts-title"><div class="section-heading"><div><h2 id="posts-title">많이 읽힌 글</h2><p class="help" id="posts-count"></p></div><label class="sr-only" for="sort-select">글 정렬</label><select id="sort-select"><option value="views">조회수순</option><option value="users">활성 사용자순</option><option value="engagementSeconds">참여 시간순</option></select></div>
+            <div class="post-controls"><div class="collection-buttons" role="group" aria-label="글 종류"><button data-collection="all" aria-pressed="true">전체</button><button data-collection="blog" aria-pressed="false">Blog</button><button data-collection="wiki" aria-pressed="false">Wiki</button><button data-collection="ai" aria-pressed="false">AI</button></div><label class="sr-only" for="post-search">글 제목 검색</label><input type="search" id="post-search" placeholder="글 제목 검색"></div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">글</th><th scope="col" class="number">조회수</th><th scope="col" class="number">활성 사용자</th><th scope="col" class="number">평균 참여</th></tr></thead><tbody id="post-rows"></tbody></table></div>
+            <p class="help table-note">평균 참여 = 총 참여 시간 ÷ 활성 사용자. 각 글의 사용자 수는 중복될 수 있어 합산하지 않습니다.</p>
+          </section>
+          <section class="channels-section" aria-labelledby="channels-title"><h2 id="channels-title">어디에서 왔을까</h2><p class="help">유입 채널별 세션 수</p><div id="channel-rows"></div><p class="help channel-note">전체 요약과 방문 추이는 사이트 전체,<br>글 목록은 Blog · Wiki · AI 상세 글입니다.</p></section>
+        </div>
+        <p class="help" id="data-warnings"></p>
+      </div>
+      <footer><span>MaryDev · Personal analytics</span><span id="updated-label" aria-live="polite">GA 인증 대기 중</span></footer>
+    </main>
+  </div>
+</body>
+</html>
