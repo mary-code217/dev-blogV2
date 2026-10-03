@@ -2,6 +2,7 @@
 dist/
 .sites-private/
 .analytics-local/
+tools/analytics/README.md
 # generated types
 .astro/
 
