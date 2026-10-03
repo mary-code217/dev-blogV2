@@ -10,6 +10,17 @@ import { GoogleAnalytics } from '../ga.mjs';
 import { createDashboardServer } from '../server.mjs';
 
 const root = path.resolve(import.meta.dirname, '../../..');
+
+test('네트워크 제한과 권한 오류를 구분하고 원문 민감정보를 노출하지 않는다', async () => {
+  const client = new GoogleAnalytics('unused');
+  client.accessToken = async () => 'secret-token';
+  client.fetcher = async () => { throw new TypeError('fetch failed secret-token', { cause: { code: 'EACCES' } }); };
+  await assert.rejects(client.request('https://analyticsdata.googleapis.com/'), (error) => error.message.includes('연결이 차단') && !error.message.includes('secret-token'));
+  client.fetcher = async () => new Response(JSON.stringify({ error: { status: 'PERMISSION_DENIED', message: 'secret-token' } }), { status: 403 });
+  await assert.rejects(client.request('https://analyticsdata.googleapis.com/'), (error) => error.message.includes('뷰어') && !error.message.includes('secret-token'));
+  client.fetcher = async () => new Response(JSON.stringify({ error: { details: [{ reason: 'SERVICE_DISABLED' }] } }), { status: 403 });
+  await assert.rejects(client.request('https://analyticsdata.googleapis.com/'), (error) => error.message.includes('Data API') && !error.message.includes('Admin API'));
+});
 function report(dimensions, metrics, rows) {
   return { dimensionHeaders: dimensions.map((name) => ({ name })), metricHeaders: metrics.map((name) => ({ name })), rows: rows.map(([d, m]) => ({ dimensionValues: d.map((value) => ({ value })), metricValues: m.map((value) => ({ value: String(value) })) })) };
 }

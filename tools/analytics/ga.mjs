@@ -24,14 +24,22 @@ export class GoogleAnalytics {
   async request(url, options = {}, authenticated = true) {
     const headers = { ...options.headers };
     if (authenticated) headers.Authorization = `Bearer ${await this.accessToken()}`;
-    const response = await this.fetcher(url, { ...options, headers, signal: AbortSignal.timeout(20000) });
+    let response;
+    try {
+      response = await this.fetcher(url, { ...options, headers, signal: AbortSignal.timeout(20000) });
+    } catch (error) {
+      if (error.name === 'TimeoutError') throw new Error('Google 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.');
+      if (['EACCES', 'EPERM'].includes(error.cause?.code)) throw new Error('서버 실행 환경에서 Google 연결이 차단됐습니다. 일반 터미널에서 npm run analytics로 다시 실행해 주세요.');
+      throw new Error('Google 서버에 연결하지 못했습니다. 인터넷 연결이나 프록시 설정을 확인하고 다시 시도해 주세요.');
+    }
     const data = await response.json();
     if (!response.ok) {
       if (response.status === 401) this.token = null;
       // Google의 원문 에러에 요청/인증 정보가 섞일 수 있으므로 정해진 안내만 노출한다.
       const reason = data.error?.details?.flatMap((item) => item.reason || []) || [];
-      if (reason.includes('SERVICE_DISABLED')) throw new Error('Google Cloud에서 Google Analytics Data API와 Admin API를 활성화해 주세요.');
-      if (response.status === 403) throw new Error('GA 읽기 권한을 확인해 주세요. 서비스 계정 이메일을 MaryDev 속성의 뷰어로 추가하고 Data API·Admin API를 활성화해야 합니다.');
+      const apiName = url.startsWith('https://analyticsadmin.googleapis.com/') ? 'Google Analytics Admin API' : 'Google Analytics Data API';
+      if (reason.includes('SERVICE_DISABLED')) throw new Error(`Google Cloud에서 ${apiName}를 활성화해 주세요.`);
+      if (response.status === 403) throw new Error('GA 읽기 권한이 없습니다. GA 관리 → 속성 액세스 관리에서 서비스 계정 이메일을 이 속성의 뷰어로 추가해 주세요.');
       if (response.status === 401 || response.status === 400 && !authenticated) throw new Error('Google 인증이 만료됐거나 키가 유효하지 않습니다. 연결 설정에서 인증 파일을 다시 선택해 주세요.');
       if (response.status === 429) throw new Error('Google API 요청 한도에 도달했습니다. 잠시 후 새로고침해 주세요.');
       throw new Error(`Google API 요청에 실패했습니다 (HTTP ${response.status}). 연결 설정과 속성 ID를 확인해 주세요.`);
